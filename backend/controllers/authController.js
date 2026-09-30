@@ -64,7 +64,15 @@ const login = async (req, res, next) => {
     }
 };
 
+const logout = (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "Đăng xuất thành công.",
+    });
+};
+
 module.exports = {
     register,
     login,
+    logout,
 };
