@@ -1,6 +1,10 @@
 const authService = require("../services/authService");
 
-const register = async (req, res, next) => {
+const register = async (
+    req,
+    res,
+    next
+) => {
     try {
         const {
             name,
@@ -8,12 +12,18 @@ const register = async (req, res, next) => {
             password,
         } = req.body;
 
-        if (!name || !email || !password) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Vui lòng nhập đầy đủ họ tên, email và mật khẩu.",
-            });
+        if (
+            !name ||
+            !email ||
+            !password
+        ) {
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        "Vui lòng nhập đầy đủ họ tên, email và mật khẩu.",
+                });
         }
 
         const user =
@@ -25,7 +35,8 @@ const register = async (req, res, next) => {
 
         res.status(201).json({
             success: true,
-            message: "Đăng ký thành công.",
+            message:
+                "Đăng ký thành công.",
             data: user,
         });
     } catch (error) {
@@ -33,19 +44,28 @@ const register = async (req, res, next) => {
     }
 };
 
-const login = async (req, res, next) => {
+const login = async (
+    req,
+    res,
+    next
+) => {
     try {
         const {
             email,
             password,
         } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Vui lòng nhập email và mật khẩu.",
-            });
+        if (
+            !email ||
+            !password
+        ) {
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        "Vui lòng nhập email và mật khẩu.",
+                });
         }
 
         const result =
@@ -56,7 +76,8 @@ const login = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            message: "Đăng nhập thành công.",
+            message:
+                "Đăng nhập thành công.",
             data: result,
         });
     } catch (error) {
@@ -64,10 +85,14 @@ const login = async (req, res, next) => {
     }
 };
 
-const logout = (req, res) => {
+const logout = (
+    req,
+    res
+) => {
     res.status(200).json({
         success: true,
-        message: "Đăng xuất thành công.",
+        message:
+            "Đăng xuất thành công.",
     });
 };
 
@@ -93,20 +118,75 @@ const getCurrentUser = async (
     }
 };
 
+const updateProfile = async (
+    req,
+    res,
+    next
+) => {
+    try {
+        const {
+            name,
+        } = req.body;
+
+        if (!name?.trim()) {
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        "Vui lòng nhập họ tên.",
+                });
+        }
+
+        if (
+            name.trim().length < 2
+        ) {
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        "Tên phải có ít nhất 2 ký tự.",
+                });
+        }
+
+        const user =
+            await authService.updateProfile({
+                userId:
+                    req.user.userId,
+                name:
+                    name.trim(),
+            });
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Cập nhật thông tin thành công.",
+            data: user,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const forgotPassword = async (
     req,
     res,
     next
 ) => {
     try {
-        const { email } = req.body;
+        const {
+            email,
+        } = req.body;
 
         if (!email) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Vui lòng nhập email.",
-            });
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        "Vui lòng nhập email.",
+                });
         }
 
         const result =
@@ -136,20 +216,29 @@ const resetPassword = async (
             newPassword,
         } = req.body;
 
-        if (!token || !newPassword) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Vui lòng cung cấp token và mật khẩu mới.",
-            });
+        if (
+            !token ||
+            !newPassword
+        ) {
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        "Vui lòng cung cấp token và mật khẩu mới.",
+                });
         }
 
-        if (newPassword.length < 6) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Mật khẩu phải có ít nhất 6 ký tự.",
-            });
+        if (
+            newPassword.length < 6
+        ) {
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        "Mật khẩu phải có ít nhất 6 ký tự.",
+                });
         }
 
         const result =
@@ -174,6 +263,7 @@ module.exports = {
     login,
     logout,
     getCurrentUser,
+    updateProfile,
     forgotPassword,
     resetPassword,
 };

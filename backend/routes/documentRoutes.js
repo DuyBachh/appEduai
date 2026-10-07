@@ -21,38 +21,69 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// Tạo document metadata
 router.post(
     "/",
     createDocument
 );
 
-// Upload một file
 router.post(
     "/upload",
-    upload.single("file"),
+
+    // Debug request trước Multer
+    (req, res, next) => {
+        console.log(
+            "\n===== UPLOAD REQUEST ====="
+        );
+
+        console.log(
+            "CONTENT-TYPE:",
+            req.headers["content-type"]
+        );
+
+        console.log(
+            "CONTENT-LENGTH:",
+            req.headers["content-length"]
+        );
+
+        next();
+    },
+
+    // Nhận mọi field file
+    upload.any(),
+
+    // Debug sau Multer
+    (req, res, next) => {
+        console.log(
+            "FILES SAU MULTER:",
+            req.files
+        );
+
+        console.log(
+            "BODY SAU MULTER:",
+            req.body
+        );
+
+        next();
+    },
+
     uploadDocument
 );
 
-// Lấy danh sách document
 router.get(
     "/",
     getDocuments
 );
 
-// Lấy chi tiết document
 router.get(
     "/:id",
     getDocumentById
 );
 
-// Cập nhật document
 router.put(
     "/:id",
     updateDocument
 );
 
-// Xóa document
 router.delete(
     "/:id",
     deleteDocument

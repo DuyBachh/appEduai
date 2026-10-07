@@ -1,193 +1,812 @@
-import React from "react";
+import {
+    useCallback,
+    useState,
+} from "react";
+
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
+    ActivityIndicator,
 } from "react-native";
 
+import {
+    useFocusEffect,
+} from "@react-navigation/native";
+
 import colors from "../../styles/colors";
+
+import {
+    apiRequest,
+} from "../../services/api";
 
 export default function DocumentDetailScreen({
     navigation,
     route,
 }) {
-    const document = route.params?.document;
+    const initialDocument =
+        route.params?.document;
 
-    if (!document) {
+    const [
+        document,
+        setDocument,
+    ] = useState(
+        initialDocument || null
+    );
+
+    const [
+        isLoading,
+        setIsLoading,
+    ] = useState(true);
+
+    const [
+        error,
+        setError,
+    ] = useState("");
+
+    const [
+        showFullText,
+        setShowFullText,
+    ] = useState(false);
+
+    // ========================================
+    // HELPERS
+    // ========================================
+
+    const getDocumentId = (
+        value
+    ) => {
         return (
-            <View style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => navigation.goBack()}
+            value?.id ||
+            value?._id
+        );
+    };
+
+    const formatFileSize = (
+        size
+    ) => {
+        const number =
+            Number(size);
+
+        if (
+            !number ||
+            Number.isNaN(number)
+        ) {
+            return "Không xác định";
+        }
+
+        if (number < 1024) {
+            return `${number} B`;
+        }
+
+        if (
+            number <
+            1024 * 1024
+        ) {
+            return `${(
+                number / 1024
+            ).toFixed(1)} KB`;
+        }
+
+        return `${(
+            number /
+            (1024 * 1024)
+        ).toFixed(1)} MB`;
+    };
+
+    const formatDate = (
+        value
+    ) => {
+        if (!value) {
+            return "Không rõ";
+        }
+
+        const date =
+            new Date(value);
+
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
+            return "Không rõ";
+        }
+
+        return date.toLocaleDateString(
+            "vi-VN",
+            {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            }
+        );
+    };
+
+    const getFileType = () => {
+        if (
+            document?.fileType
+        ) {
+            return document.fileType
+                .toUpperCase();
+        }
+
+        return (
+            document?.name
+                ?.split(".")
+                .pop()
+                ?.toUpperCase() ||
+            "FILE"
+        );
+    };
+
+    // ========================================
+    // LOAD DOCUMENT DETAIL
+    // ========================================
+
+    const loadDocument =
+        useCallback(
+            async () => {
+                const documentId =
+                    getDocumentId(
+                        initialDocument
+                    );
+
+                if (!documentId) {
+                    setError(
+                        "Không tìm thấy ID tài liệu."
+                    );
+
+                    setIsLoading(
+                        false
+                    );
+
+                    return;
+                }
+
+                try {
+                    setIsLoading(
+                        true
+                    );
+
+                    setError("");
+
+                    const result =
+                        await apiRequest(
+                            `/documents/${documentId}`
+                        );
+
+                    if (
+                        !result?.data
+                    ) {
+                        throw new Error(
+                            "Không tìm thấy dữ liệu tài liệu."
+                        );
+                    }
+
+                    setDocument(
+                        result.data
+                    );
+
+                    console.log(
+                        "DOCUMENT DETAIL SUCCESS:",
+                        result.data
+                    );
+                } catch (error) {
+                    console.log(
+                        "DOCUMENT DETAIL ERROR:",
+                        error.message
+                    );
+
+                    setError(
+                        error.message ||
+                            "Không thể tải chi tiết tài liệu."
+                    );
+                } finally {
+                    setIsLoading(
+                        false
+                    );
+                }
+            },
+            [initialDocument]
+        );
+
+    useFocusEffect(
+        useCallback(() => {
+            loadDocument();
+
+            return undefined;
+        }, [loadDocument])
+    );
+
+    // ========================================
+    // NAVIGATION
+    // ========================================
+
+    const handleSummary = () => {
+        if (!document) {
+            return;
+        }
+
+        navigation.navigate(
+            "Summary",
+            {
+                document,
+            }
+        );
+    };
+
+    const handleChat = () => {
+        if (!document) {
+            return;
+        }
+
+        navigation.navigate(
+            "Chat",
+            {
+                document,
+            }
+        );
+    };
+
+    // ========================================
+    // HEADER
+    // ========================================
+
+    const renderHeader = () => {
+        return (
+            <View
+                style={
+                    styles.header
+                }
+            >
+                <TouchableOpacity
+                    style={
+                        styles.backButton
+                    }
+                    onPress={() =>
+                        navigation.goBack()
+                    }
+                    activeOpacity={
+                        0.7
+                    }
+                >
+                    <Text
+                        style={
+                            styles.backText
+                        }
                     >
-                        <Text style={styles.backText}>‹</Text>
-                    </TouchableOpacity>
-
-                    <Text style={styles.headerTitle}>
-                        Chi tiết tài liệu
+                        ‹
                     </Text>
+                </TouchableOpacity>
 
-                    <View style={styles.headerSpace} />
-                </View>
+                <Text
+                    style={
+                        styles.headerTitle
+                    }
+                >
+                    Chi tiết tài liệu
+                </Text>
 
-                <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyTitle}>
-                        Không tìm thấy tài liệu
-                    </Text>
+                <View
+                    style={
+                        styles.headerSpace
+                    }
+                />
+            </View>
+        );
+    };
 
-                    <Text style={styles.emptyText}>
-                        Dữ liệu tài liệu không tồn tại.
+    // ========================================
+    // LOADING
+    // ========================================
+
+    if (isLoading) {
+        return (
+            <View
+                style={
+                    styles.container
+                }
+            >
+                {renderHeader()}
+
+                <View
+                    style={
+                        styles.loadingContainer
+                    }
+                >
+                    <ActivityIndicator
+                        size="large"
+                        color={
+                            colors.primary
+                        }
+                    />
+
+                    <Text
+                        style={
+                            styles.loadingText
+                        }
+                    >
+                        Đang tải chi tiết tài liệu...
                     </Text>
                 </View>
             </View>
         );
     }
 
-    const handleSummary = () => {
-        navigation.navigate("Summary", {
-            document: document,
-        });
-    };
+    // ========================================
+    // ERROR
+    // ========================================
 
-    const handleChat = () => {
-        navigation.navigate("Chat", {
-            document: document,
-        });
-    };
+    if (
+        error ||
+        !document
+    ) {
+        return (
+            <View
+                style={
+                    styles.container
+                }
+            >
+                {renderHeader()}
+
+                <View
+                    style={
+                        styles.emptyContainer
+                    }
+                >
+                    <Text
+                        style={
+                            styles.emptyIcon
+                        }
+                    >
+                        📄
+                    </Text>
+
+                    <Text
+                        style={
+                            styles.emptyTitle
+                        }
+                    >
+                        Không thể tải tài liệu
+                    </Text>
+
+                    <Text
+                        style={
+                            styles.emptyText
+                        }
+                    >
+                        {error ||
+                            "Dữ liệu tài liệu không tồn tại."}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={
+                            styles.retryButton
+                        }
+                        onPress={
+                            loadDocument
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.retryButtonText
+                            }
+                        >
+                            Thử lại
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    }
+
+    const extractedText =
+        document.extractedText
+            ?.trim() || "";
+
+    const hasLongText =
+        extractedText.length >
+        700;
+
+    const displayedText =
+        !showFullText &&
+        hasLongText
+            ? `${extractedText.slice(
+                  0,
+                  700
+              )}...`
+            : extractedText;
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => navigation.goBack()}
-                >
-                    <Text style={styles.backText}>‹</Text>
-                </TouchableOpacity>
-
-                <Text style={styles.headerTitle}>
-                    Chi tiết tài liệu
-                </Text>
-
-                <View style={styles.headerSpace} />
-            </View>
+        <View
+            style={
+                styles.container
+            }
+        >
+            {renderHeader()}
 
             <ScrollView
-                contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
+                contentContainerStyle={
+                    styles.content
+                }
+                showsVerticalScrollIndicator={
+                    false
+                }
             >
-                {/* File information */}
-                <View style={styles.fileCard}>
-                    <View style={styles.fileIconContainer}>
-                        <Text style={styles.fileIcon}>
+                {/* =================================
+                    FILE CARD
+                ================================= */}
+
+                <View
+                    style={
+                        styles.fileCard
+                    }
+                >
+                    <View
+                        style={
+                            styles.fileIconContainer
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.fileIcon
+                            }
+                        >
                             📄
                         </Text>
+
+                        <View
+                            style={
+                                styles.fileTypeBadge
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.fileTypeBadgeText
+                                }
+                            >
+                                {getFileType()}
+                            </Text>
+                        </View>
                     </View>
 
-                    <Text style={styles.fileName}>
+                    <Text
+                        style={
+                            styles.fileName
+                        }
+                    >
                         {document.name ||
                             "Tài liệu không tên"}
                     </Text>
 
-                    <Text style={styles.fileDate}>
+                    <Text
+                        style={
+                            styles.fileDate
+                        }
+                    >
                         Ngày tải lên:{" "}
-                        {document.date || "Không rõ"}
+                        {formatDate(
+                            document.createdAt ||
+                                document.date
+                        )}
                     </Text>
                 </View>
 
-                {/* Document information */}
-                <View style={styles.infoCard}>
-                    <Text style={styles.sectionTitle}>
+                {/* =================================
+                    INFORMATION
+                ================================= */}
+
+                <View
+                    style={
+                        styles.infoCard
+                    }
+                >
+                    <Text
+                        style={
+                            styles.sectionTitle
+                        }
+                    >
                         Thông tin tài liệu
                     </Text>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>
+                    <View
+                        style={
+                            styles.infoRow
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.infoLabel
+                            }
+                        >
                             Tên file
                         </Text>
 
                         <Text
-                            style={styles.infoValue}
-                            numberOfLines={2}
+                            style={
+                                styles.infoValue
+                            }
+                            numberOfLines={
+                                3
+                            }
                         >
-                            {document.name || "Không có"}
+                            {document.name ||
+                                "Không có"}
                         </Text>
                     </View>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>
+                    <View
+                        style={
+                            styles.infoRow
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.infoLabel
+                            }
+                        >
                             Loại file
                         </Text>
 
-                        <Text style={styles.infoValue}>
-                            {document.name
-                                ?.split(".")
-                                .pop()
-                                ?.toUpperCase() ||
-                                "Không xác định"}
+                        <Text
+                            style={
+                                styles.infoValue
+                            }
+                        >
+                            {getFileType()}
                         </Text>
                     </View>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>
+                    <View
+                        style={
+                            styles.infoRow
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.infoLabel
+                            }
+                        >
                             Kích thước
                         </Text>
 
-                        <Text style={styles.infoValue}>
-                            {document.size
-                                ? `${(
-                                      document.size /
-                                      1024
-                                  ).toFixed(2)} KB`
-                                : "Không xác định"}
+                        <Text
+                            style={
+                                styles.infoValue
+                            }
+                        >
+                            {formatFileSize(
+                                document.size
+                            )}
                         </Text>
                     </View>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>
+                    <View
+                        style={
+                            styles.infoRow
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.infoLabel
+                            }
+                        >
                             Môn học
                         </Text>
 
-                        <Text style={styles.infoValue}>
+                        <Text
+                            style={[
+                                styles.infoValue,
+
+                                document.subject &&
+                                    styles.infoValuePrimary,
+                            ]}
+                        >
                             {document.subject ||
                                 "Chưa phân loại"}
                         </Text>
                     </View>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>
+                    <View
+                        style={[
+                            styles.infoRow,
+                            styles.lastInfoRow,
+                        ]}
+                    >
+                        <Text
+                            style={
+                                styles.infoLabel
+                            }
+                        >
                             Chủ đề
                         </Text>
 
-                        <Text style={styles.infoValue}>
+                        <Text
+                            style={[
+                                styles.infoValue,
+
+                                document.topic &&
+                                    styles.infoValuePrimary,
+                            ]}
+                        >
                             {document.topic ||
                                 "Chưa phân loại"}
                         </Text>
                     </View>
                 </View>
 
-                {/* Learning tools */}
-                <View style={styles.actionCard}>
-                    <Text style={styles.sectionTitle}>
+                {/* =================================
+                    EXTRACTED TEXT
+                ================================= */}
+
+                <View
+                    style={
+                        styles.textCard
+                    }
+                >
+                    <View
+                        style={
+                            styles.sectionHeader
+                        }
+                    >
+                        <View>
+                            <Text
+                                style={
+                                    styles.sectionTitleNoMargin
+                                }
+                            >
+                                Nội dung tài liệu
+                            </Text>
+
+                            <Text
+                                style={
+                                    styles.sectionSubtitle
+                                }
+                            >
+                                Văn bản được trích xuất tự động
+                            </Text>
+                        </View>
+
+                        {extractedText ? (
+                            <View
+                                style={
+                                    styles.successBadge
+                                }
+                            >
+                                <Text
+                                    style={
+                                        styles.successBadgeText
+                                    }
+                                >
+                                    Đã xử lý
+                                </Text>
+                            </View>
+                        ) : null}
+                    </View>
+
+                    {extractedText ? (
+                        <>
+                            <View
+                                style={
+                                    styles.extractedTextContainer
+                                }
+                            >
+                                <Text
+                                    style={
+                                        styles.extractedText
+                                    }
+                                    selectable
+                                >
+                                    {displayedText}
+                                </Text>
+                            </View>
+
+                            {hasLongText ? (
+                                <TouchableOpacity
+                                    style={
+                                        styles.expandButton
+                                    }
+                                    onPress={() =>
+                                        setShowFullText(
+                                            (
+                                                current
+                                            ) =>
+                                                !current
+                                        )
+                                    }
+                                >
+                                    <Text
+                                        style={
+                                            styles.expandButtonText
+                                        }
+                                    >
+                                        {showFullText
+                                            ? "Thu gọn"
+                                            : "Xem toàn bộ nội dung"}
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : null}
+                        </>
+                    ) : (
+                        <View
+                            style={
+                                styles.noTextContainer
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.noTextIcon
+                                }
+                            >
+                                📝
+                            </Text>
+
+                            <Text
+                                style={
+                                    styles.noTextTitle
+                                }
+                            >
+                                Chưa có nội dung
+                            </Text>
+
+                            <Text
+                                style={
+                                    styles.noTextDescription
+                                }
+                            >
+                                Tài liệu này chưa có văn bản được trích xuất.
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* =================================
+                    AI TOOLS
+                ================================= */}
+
+                <View
+                    style={
+                        styles.actionCard
+                    }
+                >
+                    <Text
+                        style={
+                            styles.sectionTitle
+                        }
+                    >
                         Công cụ học tập
                     </Text>
 
-                    {/* AI Summary */}
                     <TouchableOpacity
-                        style={styles.summaryButton}
-                        onPress={handleSummary}
-                        activeOpacity={0.8}
+                        style={
+                            styles.summaryButton
+                        }
+                        onPress={
+                            handleSummary
+                        }
+                        activeOpacity={
+                            0.8
+                        }
                     >
-                        <Text style={styles.summaryIcon}>
-                            🤖
-                        </Text>
+                        <View
+                            style={
+                                styles.actionIconContainer
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.actionIcon
+                                }
+                            >
+                                ✨
+                            </Text>
+                        </View>
 
                         <View
                             style={
-                                styles.summaryButtonContent
+                                styles.actionButtonContent
                             }
                         >
                             <Text
@@ -203,29 +822,47 @@ export default function DocumentDetailScreen({
                                     styles.summaryButtonDescription
                                 }
                             >
-                                Tạo bản tóm tắt thông minh từ
-                                tài liệu
+                                Tạo bản tóm tắt thông minh từ tài liệu
                             </Text>
                         </View>
 
-                        <Text style={styles.arrow}>
-                            →
+                        <Text
+                            style={
+                                styles.lightArrow
+                            }
+                        >
+                            ›
                         </Text>
                     </TouchableOpacity>
 
-                    {/* AI Q&A */}
                     <TouchableOpacity
-                        style={styles.chatButton}
-                        onPress={handleChat}
-                        activeOpacity={0.8}
+                        style={
+                            styles.chatButton
+                        }
+                        onPress={
+                            handleChat
+                        }
+                        activeOpacity={
+                            0.8
+                        }
                     >
-                        <Text style={styles.chatIcon}>
-                            💬
-                        </Text>
+                        <View
+                            style={
+                                styles.chatIconContainer
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.actionIcon
+                                }
+                            >
+                                💬
+                            </Text>
+                        </View>
 
                         <View
                             style={
-                                styles.chatButtonContent
+                                styles.actionButtonContent
                             }
                         >
                             <Text
@@ -233,7 +870,7 @@ export default function DocumentDetailScreen({
                                     styles.chatButtonTitle
                                 }
                             >
-                                AI Q&A
+                                Chat với tài liệu
                             </Text>
 
                             <Text
@@ -241,13 +878,16 @@ export default function DocumentDetailScreen({
                                     styles.chatButtonDescription
                                 }
                             >
-                                Đặt câu hỏi và trao đổi với AI
-                                về tài liệu
+                                Đặt câu hỏi dựa trên nội dung tài liệu
                             </Text>
                         </View>
 
-                        <Text style={styles.arrow}>
-                            →
+                        <Text
+                            style={
+                                styles.darkArrow
+                            }
+                        >
+                            ›
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -259,8 +899,13 @@ export default function DocumentDetailScreen({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor:
+            colors.background,
     },
+
+    // ========================================
+    // HEADER
+    // ========================================
 
     header: {
         height: 100,
@@ -268,10 +913,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: colors.white,
+        justifyContent:
+            "space-between",
+        backgroundColor:
+            colors.white,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor:
+            colors.border,
     },
 
     backButton: {
@@ -288,7 +936,7 @@ const styles = StyleSheet.create({
     },
 
     headerTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: "700",
         color: colors.text,
     },
@@ -297,39 +945,67 @@ const styles = StyleSheet.create({
         width: 40,
     },
 
+    // ========================================
+    // CONTENT
+    // ========================================
+
     content: {
-        paddingTop: 20,
+        paddingTop: 18,
         paddingHorizontal: 20,
         paddingBottom: 40,
     },
 
+    // ========================================
+    // FILE CARD
+    // ========================================
+
     fileCard: {
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         padding: 24,
         alignItems: "center",
         marginBottom: 16,
     },
 
     fileIconContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 20,
-        backgroundColor: "#EEF2FF",
+        width: 82,
+        height: 82,
+        borderRadius: 22,
+        backgroundColor:
+            "#EEF2FF",
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 16,
+        position: "relative",
     },
 
     fileIcon: {
-        fontSize: 40,
+        fontSize: 38,
+    },
+
+    fileTypeBadge: {
+        position: "absolute",
+        bottom: -6,
+        backgroundColor:
+            colors.primary,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 10,
+    },
+
+    fileTypeBadgeText: {
+        fontSize: 9,
+        fontWeight: "700",
+        color: colors.white,
     },
 
     fileName: {
-        fontSize: 20,
-        lineHeight: 27,
+        fontSize: 19,
+        lineHeight: 26,
         fontWeight: "700",
         color: colors.text,
         textAlign: "center",
@@ -337,16 +1013,22 @@ const styles = StyleSheet.create({
     },
 
     fileDate: {
-        fontSize: 14,
+        fontSize: 13,
         color: colors.gray,
         textAlign: "center",
     },
 
+    // ========================================
+    // INFO CARD
+    // ========================================
+
     infoCard: {
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         padding: 18,
         marginBottom: 16,
     },
@@ -355,108 +1037,265 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "700",
         color: colors.text,
-        marginBottom: 16,
+        marginBottom: 14,
     },
 
     infoRow: {
         flexDirection: "row",
         alignItems: "flex-start",
-        paddingVertical: 10,
+        paddingVertical: 11,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor:
+            colors.border,
+    },
+
+    lastInfoRow: {
+        borderBottomWidth: 0,
+        paddingBottom: 0,
     },
 
     infoLabel: {
-        width: 100,
-        fontSize: 14,
+        width: 95,
+        fontSize: 13,
         color: colors.gray,
     },
 
     infoValue: {
         flex: 1,
-        fontSize: 14,
+        fontSize: 13,
+        lineHeight: 18,
         fontWeight: "600",
         color: colors.text,
         textAlign: "right",
     },
 
-    actionCard: {
-        backgroundColor: colors.white,
+    infoValuePrimary: {
+        color: colors.primary,
+    },
+
+    // ========================================
+    // EXTRACTED TEXT
+    // ========================================
+
+    textCard: {
+        backgroundColor:
+            colors.white,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
+        padding: 18,
+        marginBottom: 16,
+    },
+
+    sectionHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent:
+            "space-between",
+        gap: 10,
+        marginBottom: 14,
+    },
+
+    sectionTitleNoMargin: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+    },
+
+    sectionSubtitle: {
+        fontSize: 12,
+        color: colors.gray,
+        marginTop: 4,
+    },
+
+    successBadge: {
+        backgroundColor:
+            "#ECFDF5",
+        paddingHorizontal: 9,
+        paddingVertical: 5,
+        borderRadius: 20,
+    },
+
+    successBadgeText: {
+        fontSize: 10,
+        fontWeight: "700",
+        color: "#059669",
+    },
+
+    extractedTextContainer: {
+        backgroundColor:
+            colors.background,
+        borderRadius: 12,
+        padding: 14,
+    },
+
+    extractedText: {
+        fontSize: 14,
+        lineHeight: 22,
+        color: colors.text,
+    },
+
+    expandButton: {
+        height: 42,
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 8,
+    },
+
+    expandButtonText: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: colors.primary,
+    },
+
+    noTextContainer: {
+        alignItems: "center",
+        paddingVertical: 24,
+    },
+
+    noTextIcon: {
+        fontSize: 30,
+        marginBottom: 10,
+    },
+
+    noTextTitle: {
+        fontSize: 15,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 5,
+    },
+
+    noTextDescription: {
+        fontSize: 13,
+        lineHeight: 19,
+        color: colors.gray,
+        textAlign: "center",
+    },
+
+    // ========================================
+    // AI ACTIONS
+    // ========================================
+
+    actionCard: {
+        backgroundColor:
+            colors.white,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor:
+            colors.border,
         padding: 18,
     },
 
     summaryButton: {
         minHeight: 78,
-        backgroundColor: colors.primary,
+        backgroundColor:
+            colors.primary,
         borderRadius: 14,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 13,
         flexDirection: "row",
         alignItems: "center",
         marginBottom: 12,
     },
 
-    summaryIcon: {
-        fontSize: 28,
-        marginRight: 12,
-    },
-
-    summaryButtonContent: {
-        flex: 1,
-    },
-
-    summaryButtonTitle: {
-        fontSize: 17,
-        fontWeight: "700",
-        color: colors.white,
-        marginBottom: 4,
-    },
-
-    summaryButtonDescription: {
-        fontSize: 13,
-        lineHeight: 18,
-        color: "#E0E7FF",
-    },
-
     chatButton: {
         minHeight: 78,
-        backgroundColor: "#111827",
+        backgroundColor:
+            colors.white,
         borderRadius: 14,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        borderWidth: 1,
+        borderColor:
+            colors.border,
+        paddingHorizontal: 14,
+        paddingVertical: 13,
         flexDirection: "row",
         alignItems: "center",
     },
 
-    chatIcon: {
-        fontSize: 28,
+    actionIconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor:
+            "rgba(255,255,255,0.16)",
+        alignItems: "center",
+        justifyContent: "center",
         marginRight: 12,
     },
 
-    chatButtonContent: {
+    chatIconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor:
+            "#EEF2FF",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 12,
+    },
+
+    actionIcon: {
+        fontSize: 22,
+    },
+
+    actionButtonContent: {
         flex: 1,
     },
 
-    chatButtonTitle: {
-        fontSize: 17,
+    summaryButtonTitle: {
+        fontSize: 16,
         fontWeight: "700",
         color: colors.white,
-        marginBottom: 4,
+        marginBottom: 3,
+    },
+
+    summaryButtonDescription: {
+        fontSize: 12,
+        lineHeight: 17,
+        color: "#E0E7FF",
+    },
+
+    chatButtonTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 3,
     },
 
     chatButtonDescription: {
-        fontSize: 13,
-        lineHeight: 18,
-        color: "#D1D5DB",
+        fontSize: 12,
+        lineHeight: 17,
+        color: colors.gray,
     },
 
-    arrow: {
-        fontSize: 24,
+    lightArrow: {
+        fontSize: 26,
         color: colors.white,
-        marginLeft: 10,
+        marginLeft: 8,
+    },
+
+    darkArrow: {
+        fontSize: 26,
+        color: colors.gray,
+        marginLeft: 8,
+    },
+
+    // ========================================
+    // LOADING / ERROR
+    // ========================================
+
+    loadingContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingBottom: 70,
+    },
+
+    loadingText: {
+        fontSize: 14,
+        color: colors.gray,
+        marginTop: 12,
     },
 
     emptyContainer: {
@@ -464,6 +1303,12 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         paddingHorizontal: 30,
+        paddingBottom: 70,
+    },
+
+    emptyIcon: {
+        fontSize: 42,
+        marginBottom: 14,
     },
 
     emptyTitle: {
@@ -474,8 +1319,27 @@ const styles = StyleSheet.create({
     },
 
     emptyText: {
-        fontSize: 15,
+        fontSize: 14,
+        lineHeight: 20,
         color: colors.gray,
         textAlign: "center",
+        marginBottom: 20,
+    },
+
+    retryButton: {
+        height: 46,
+        minWidth: 120,
+        paddingHorizontal: 20,
+        backgroundColor:
+            colors.primary,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+
+    retryButtonText: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: colors.white,
     },
 });

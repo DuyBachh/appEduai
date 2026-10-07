@@ -1,28 +1,43 @@
 const bcrypt = require("bcrypt");
-const { ObjectId } = require("mongodb");
+const {
+    ObjectId,
+} = require("mongodb");
 const crypto = require("crypto");
 
-const { createUser } = require("../models/userModel");
-const { client } = require("../config/database");
-const { generateToken } = require("../utils/jwt");
+const {
+    createUser,
+} = require("../models/userModel");
+
+const {
+    client,
+} = require("../config/database");
+
+const {
+    generateToken,
+} = require("../utils/jwt");
 
 const registerUser = async ({
     name,
     email,
     password,
 }) => {
-    const db = client.db("appEduai");
-    const usersCollection = db.collection("users");
+    const db =
+        client.db("appEduai");
+
+    const usersCollection =
+        db.collection("users");
 
     const existingUser =
         await usersCollection.findOne({
-            email: email.toLowerCase(),
+            email:
+                email.toLowerCase(),
         });
 
     if (existingUser) {
-        const error = new Error(
-            "Email đã được đăng ký."
-        );
+        const error =
+            new Error(
+                "Email đã được đăng ký."
+            );
 
         error.statusCode = 409;
 
@@ -30,15 +45,22 @@ const registerUser = async ({
     }
 
     const hashedPassword =
-        await bcrypt.hash(password, 10);
+        await bcrypt.hash(
+            password,
+            10
+        );
 
     const user = createUser({
         name,
-        email: email.toLowerCase(),
-        password: hashedPassword,
+        email:
+            email.toLowerCase(),
+        password:
+            hashedPassword,
     });
 
-    await usersCollection.insertOne(user);
+    await usersCollection.insertOne(
+        user
+    );
 
     return {
         id: user._id,
@@ -51,18 +73,23 @@ const loginUser = async ({
     email,
     password,
 }) => {
-    const db = client.db("appEduai");
-    const usersCollection = db.collection("users");
+    const db =
+        client.db("appEduai");
+
+    const usersCollection =
+        db.collection("users");
 
     const user =
         await usersCollection.findOne({
-            email: email.toLowerCase(),
+            email:
+                email.toLowerCase(),
         });
 
     if (!user) {
-        const error = new Error(
-            "Email hoặc mật khẩu không chính xác."
-        );
+        const error =
+            new Error(
+                "Email hoặc mật khẩu không chính xác."
+            );
 
         error.statusCode = 401;
 
@@ -76,9 +103,10 @@ const loginUser = async ({
         );
 
     if (!isPasswordValid) {
-        const error = new Error(
-            "Email hoặc mật khẩu không chính xác."
-        );
+        const error =
+            new Error(
+                "Email hoặc mật khẩu không chính xác."
+            );
 
         error.statusCode = 401;
 
@@ -91,7 +119,8 @@ const loginUser = async ({
         email: user.email,
     };
 
-    const token = generateToken(userData);
+    const token =
+        generateToken(userData);
 
     return {
         user: userData,
@@ -99,118 +128,233 @@ const loginUser = async ({
     };
 };
 
-const getCurrentUser = async (userId) => {
-    const db = client.db("appEduai");
-    const usersCollection = db.collection("users");
+const getCurrentUser =
+    async (userId) => {
+        const db =
+            client.db("appEduai");
 
-    if (!ObjectId.isValid(userId)) {
-        const error = new Error(
-            "User ID không hợp lệ."
-        );
+        const usersCollection =
+            db.collection("users");
+
+        if (
+            !ObjectId.isValid(
+                userId
+            )
+        ) {
+            const error =
+                new Error(
+                    "User ID không hợp lệ."
+                );
+
+            error.statusCode = 400;
+
+            throw error;
+        }
+
+        const user =
+            await usersCollection.findOne(
+                {
+                    _id:
+                        new ObjectId(
+                            userId
+                        ),
+                },
+                {
+                    projection: {
+                        password: 0,
+                    },
+                }
+            );
+
+        if (!user) {
+            const error =
+                new Error(
+                    "Không tìm thấy người dùng."
+                );
+
+            error.statusCode = 404;
+
+            throw error;
+        }
+
+        return {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+        };
+    };
+
+const updateProfile = async ({
+    userId,
+    name,
+}) => {
+    const db =
+        client.db("appEduai");
+
+    const usersCollection =
+        db.collection("users");
+
+    if (
+        !ObjectId.isValid(
+            userId
+        )
+    ) {
+        const error =
+            new Error(
+                "User ID không hợp lệ."
+            );
 
         error.statusCode = 400;
 
         throw error;
     }
 
-    const user =
-        await usersCollection.findOne(
+    const trimmedName =
+        name.trim();
+
+    if (!trimmedName) {
+        const error =
+            new Error(
+                "Tên không được để trống."
+            );
+
+        error.statusCode = 400;
+
+        throw error;
+    }
+
+    const result =
+        await usersCollection.updateOne(
             {
-                _id: new ObjectId(userId),
+                _id:
+                    new ObjectId(
+                        userId
+                    ),
             },
             {
-                projection: {
-                    password: 0,
+                $set: {
+                    name:
+                        trimmedName,
+                    updatedAt:
+                        new Date(),
                 },
             }
         );
 
-    if (!user) {
-        const error = new Error(
-            "Không tìm thấy người dùng."
-        );
+    if (
+        result.matchedCount ===
+        0
+    ) {
+        const error =
+            new Error(
+                "Không tìm thấy người dùng."
+            );
 
         error.statusCode = 404;
 
         throw error;
     }
 
-    return {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-    };
+    return await getCurrentUser(
+        userId
+    );
 };
 
-const forgotPassword = async (email) => {
-    const db = client.db("appEduai");
-    const usersCollection = db.collection("users");
+const forgotPassword =
+    async (email) => {
+        const db =
+            client.db("appEduai");
 
-    const normalizedEmail =
-        email.toLowerCase();
+        const usersCollection =
+            db.collection("users");
 
-    const user =
-        await usersCollection.findOne({
-            email: normalizedEmail,
-        });
+        const normalizedEmail =
+            email.toLowerCase();
 
-    if (!user) {
-        const error = new Error(
-            "Email không tồn tại."
-        );
+        const user =
+            await usersCollection.findOne(
+                {
+                    email:
+                        normalizedEmail,
+                }
+            );
 
-        error.statusCode = 404;
+        if (!user) {
+            const error =
+                new Error(
+                    "Email không tồn tại."
+                );
 
-        throw error;
-    }
+            error.statusCode = 404;
 
-    const resetToken =
-        crypto.randomBytes(32).toString("hex");
-
-    const resetTokenExpires = new Date(
-        Date.now() + 15 * 60 * 1000
-    );
-
-    await usersCollection.updateOne(
-        {
-            _id: user._id,
-        },
-        {
-            $set: {
-                resetPasswordToken:
-                    resetToken,
-                resetPasswordExpires:
-                    resetTokenExpires,
-                updatedAt: new Date(),
-            },
+            throw error;
         }
-    );
 
-    return {
-        resetToken,
-        expiresAt: resetTokenExpires,
+        const resetToken =
+            crypto
+                .randomBytes(32)
+                .toString("hex");
+
+        const resetTokenExpires =
+            new Date(
+                Date.now() +
+                    15 *
+                        60 *
+                        1000
+            );
+
+        await usersCollection.updateOne(
+            {
+                _id: user._id,
+            },
+            {
+                $set: {
+                    resetPasswordToken:
+                        resetToken,
+                    resetPasswordExpires:
+                        resetTokenExpires,
+                    updatedAt:
+                        new Date(),
+                },
+            }
+        );
+
+        return {
+            resetToken,
+            expiresAt:
+                resetTokenExpires,
+        };
     };
-};
 
 const resetPassword = async ({
     token,
     newPassword,
 }) => {
-    const db = client.db("appEduai");
-    const usersCollection = db.collection("users");
+    const db =
+        client.db("appEduai");
+
+    const usersCollection =
+        db.collection("users");
 
     const user =
-        await usersCollection.findOne({
-            resetPasswordToken: token,
-            resetPasswordExpires: {
-                $gt: new Date(),
-            },
-        });
+        await usersCollection.findOne(
+            {
+                resetPasswordToken:
+                    token,
+
+                resetPasswordExpires:
+                    {
+                        $gt:
+                            new Date(),
+                    },
+            }
+        );
 
     if (!user) {
-        const error = new Error(
-            "Token không hợp lệ hoặc đã hết hạn."
-        );
+        const error =
+            new Error(
+                "Token không hợp lệ hoặc đã hết hạn."
+            );
 
         error.statusCode = 400;
 
@@ -229,12 +373,17 @@ const resetPassword = async ({
         },
         {
             $set: {
-                password: hashedPassword,
-                updatedAt: new Date(),
+                password:
+                    hashedPassword,
+                updatedAt:
+                    new Date(),
             },
+
             $unset: {
-                resetPasswordToken: "",
-                resetPasswordExpires: "",
+                resetPasswordToken:
+                    "",
+                resetPasswordExpires:
+                    "",
             },
         }
     );
@@ -249,6 +398,7 @@ module.exports = {
     registerUser,
     loginUser,
     getCurrentUser,
+    updateProfile,
     forgotPassword,
     resetPassword,
 };

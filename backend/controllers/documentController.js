@@ -163,32 +163,39 @@ const uploadDocument = async (
     next
 ) => {
     try {
-        console.log("BODY:", req.body);
-        console.log("FILES:", req.files);
+        const uploadedFile =
+            req.file ||
+            req.files?.[0];
 
-        const {
-            subject,
-            topic,
-        } = req.body;
+        if (!uploadedFile) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Vui lòng chọn file để upload.",
+            });
+        }
 
-        const file =
-            req.files &&
-            req.files.length > 0
-                ? req.files[0]
-                : null;
+        if (
+            req.body?.originalName
+        ) {
+            uploadedFile.originalname =
+                req.body.originalName;
+        }
 
         console.log(
-            "FILE ĐƯỢC CHỌN:",
-            file
+            "TÊN FILE GỐC:",
+            uploadedFile.originalname
         );
 
         const document =
-            await documentService.uploadDocumentService({
-                userId: req.user.userId,
-                file,
-                subject,
-                topic,
-            });
+            await documentService
+                .uploadDocumentService({
+                    userId:
+                        req.user.userId,
+
+                    file:
+                        uploadedFile,
+                });
 
         res.status(201).json({
             success: true,

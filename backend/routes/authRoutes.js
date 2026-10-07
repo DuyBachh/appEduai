@@ -7,6 +7,7 @@ const {
     getCurrentUser,
     forgotPassword,
     resetPassword,
+    updateProfile,
 } = require("../controllers/authController");
 
 const {
@@ -15,11 +16,20 @@ const {
 
 const router = express.Router();
 
-router.post("/register", register);
+router.post(
+    "/register",
+    register
+);
 
-router.post("/login", login);
+router.post(
+    "/login",
+    login
+);
 
-router.post("/logout", logout);
+router.post(
+    "/logout",
+    logout
+);
 
 router.post(
     "/forgot-password",
@@ -35,6 +45,12 @@ router.get(
     "/me",
     authMiddleware,
     getCurrentUser
+);
+
+router.put(
+    "/profile",
+    authMiddleware,
+    updateProfile
 );
 
 module.exports = router;

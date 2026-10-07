@@ -1,4 +1,8 @@
 import {
+    fetch,
+} from "expo/fetch";
+
+import {
     getToken,
     removeToken,
 } from "./tokenStorage";
@@ -22,7 +26,8 @@ const apiRequest = async (
                 : await getToken();
 
         const isFormData =
-            fetchOptions.body instanceof FormData;
+            fetchOptions.body instanceof
+            FormData;
 
         const headers = {
             ...(!isFormData && {
@@ -55,13 +60,13 @@ const apiRequest = async (
                 }
             );
 
-        const responseText =
-            await response.text();
-
         console.log(
             "API STATUS:",
             response.status
         );
+
+        const responseText =
+            await response.text();
 
         let data;
 

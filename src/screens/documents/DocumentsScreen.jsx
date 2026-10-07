@@ -1,4 +1,7 @@
-import { useState } from "react";
+import {
+    useCallback,
+    useState,
+} from "react";
 
 import {
     View,
@@ -10,178 +13,794 @@ import {
     Modal,
     TextInput,
     ActivityIndicator,
+    RefreshControl,
 } from "react-native";
+
+import {
+    useFocusEffect,
+} from "@react-navigation/native";
 
 import * as DocumentPicker from "expo-document-picker";
 
+import {
+    File,
+    UploadType,
+} from "expo-file-system";
+
 import colors from "../../styles/colors";
 
-export default function DocumentsScreen({ navigation }) {
-    const [documents, setDocuments] = useState([]);
+import {
+    API_BASE_URL,
+    apiRequest,
+} from "../../services/api";
 
-    // =========================
-    // LOADING
-    // =========================
+import {
+    getToken,
+    removeToken,
+} from "../../services/tokenStorage";
 
-    const [isLoading, setIsLoading] = useState(false);
+export default function DocumentsScreen({
+    navigation,
+}) {
+    const [
+        documents,
+        setDocuments,
+    ] = useState([]);
 
-    // =========================
-    // ERROR
-    // =========================
+    const [
+        isLoading,
+        setIsLoading,
+    ] = useState(true);
 
-    const [error, setError] = useState("");
+    const [
+        refreshing,
+        setRefreshing,
+    ] = useState(false);
+
+    const [
+        uploadLoading,
+        setUploadLoading,
+    ] = useState(false);
+
+    const [
+        actionLoading,
+        setActionLoading,
+    ] = useState(false);
+
+    const [
+        error,
+        setError,
+    ] = useState("");
 
     // =========================
     // RENAME
     // =========================
 
-    const [isRenameModalVisible, setIsRenameModalVisible] =
-        useState(false);
+    const [
+        isRenameModalVisible,
+        setIsRenameModalVisible,
+    ] = useState(false);
 
-    const [selectedDocumentId, setSelectedDocumentId] =
-        useState(null);
+    const [
+        selectedDocumentId,
+        setSelectedDocumentId,
+    ] = useState(null);
 
-    const [newName, setNewName] = useState("");
-
-    // =========================
-    // SUBJECT
-    // =========================
-
-    const [isSubjectModalVisible, setIsSubjectModalVisible] =
-        useState(false);
-
-    const [newSubject, setNewSubject] = useState("");
+    const [
+        newName,
+        setNewName,
+    ] = useState("");
 
     // =========================
-    // TOPIC
+    // CLASSIFY
     // =========================
 
-    const [isTopicModalVisible, setIsTopicModalVisible] =
-        useState(false);
+    const [
+        isClassifyModalVisible,
+        setIsClassifyModalVisible,
+    ] = useState(false);
 
-    const [newTopic, setNewTopic] = useState("");
+    const [
+        newSubject,
+        setNewSubject,
+    ] = useState("");
 
-    // =========================
-    // UPLOAD
-    // =========================
+    const [
+        newTopic,
+        setNewTopic,
+    ] = useState("");
 
-    const handleUpload = async () => {
-        setError("");
-        setIsLoading(true);
+    // ========================================
+    // HELPERS
+    // ========================================
 
-        try {
-            const result =
-                await DocumentPicker.getDocumentAsync({
-                    type: [
-                        "application/pdf",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "text/plain",
-                    ],
-                    copyToCacheDirectory: true,
-                    multiple: false,
-                });
+    const getDocumentId = (
+        document
+    ) => {
+        return (
+            document?.id ||
+            document?._id
+        );
+    };
 
-            if (!result.canceled) {
-                const file = result.assets[0];
+    const getDocumentName = (
+        document
+    ) => {
+        return (
+            document?.name ||
+            document?.originalName ||
+            document?.fileName ||
+            "Tài liệu"
+        );
+    };
 
-                const newDocument = {
-                    id: Date.now().toString(),
-                    name: file.name,
-                    size: file.size || 0,
-                    uri: file.uri,
-                    date: new Date().toLocaleDateString(
-                        "vi-VN"
-                    ),
-                    subject: "",
-                    topic: "",
-                };
+    const getDocumentsFromResponse = (
+        result
+    ) => {
+        if (
+            Array.isArray(
+                result?.data
+            )
+        ) {
+            return result.data;
+        }
 
-                setDocuments((currentDocuments) => [
-                    ...currentDocuments,
-                    newDocument,
-                ]);
+        if (
+            Array.isArray(
+                result?.data
+                    ?.documents
+            )
+        ) {
+            return result.data
+                .documents;
+        }
+
+        return [];
+    };
+
+    // ========================================
+    // LOAD DOCUMENTS
+    // ========================================
+
+    const loadDocuments =
+        useCallback(
+            async (
+                showLoading =
+                    true
+            ) => {
+                try {
+                    if (
+                        showLoading
+                    ) {
+                        setIsLoading(
+                            true
+                        );
+                    }
+
+                    setError("");
+
+                    const result =
+                        await apiRequest(
+                            "/documents"
+                        );
+
+                    const list =
+                        getDocumentsFromResponse(
+                            result
+                        );
+
+                    setDocuments(
+                        list
+                    );
+
+                    console.log(
+                        "DOCUMENT LIST SUCCESS:",
+                        list.length
+                    );
+                } catch (error) {
+                    console.log(
+                        "DOCUMENT LIST ERROR:",
+                        error.message
+                    );
+
+                    setError(
+                        error.message ||
+                            "Không thể tải danh sách tài liệu."
+                    );
+                } finally {
+                    if (
+                        showLoading
+                    ) {
+                        setIsLoading(
+                            false
+                        );
+                    }
+                }
+            },
+            []
+        );
+
+    useFocusEffect(
+        useCallback(() => {
+            loadDocuments();
+
+            return undefined;
+        }, [loadDocuments])
+    );
+
+    // ========================================
+    // REFRESH
+    // ========================================
+
+    const handleRefresh =
+        async () => {
+            try {
+                setRefreshing(
+                    true
+                );
+
+                await loadDocuments(
+                    false
+                );
+            } finally {
+                setRefreshing(
+                    false
+                );
             }
-        } catch (error) {
-            console.error(
-                "Lỗi chọn file:",
-                error
-            );
+        };
 
-            setError(
-                "Không thể chọn tài liệu. Vui lòng thử lại."
-            );
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    // ========================================
+    // UPLOAD
+    // ========================================
 
-    // =========================
+    const handleUpload =
+        async () => {
+            setError("");
+
+            try {
+                const result =
+                    await DocumentPicker
+                        .getDocumentAsync({
+                            type: [
+                                "application/pdf",
+                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                "text/plain",
+                            ],
+
+                            copyToCacheDirectory:
+                                true,
+
+                            multiple:
+                                false,
+                        });
+
+                if (
+                    result.canceled
+                ) {
+                    return;
+                }
+
+                const pickedFile =
+                    result.assets[0];
+
+                console.log(
+                    "FILE ĐÃ CHỌN:",
+                    pickedFile.name
+                );
+
+                console.log(
+                    "FILE URI:",
+                    pickedFile.uri
+                );
+
+                const token =
+                    await getToken();
+
+                if (!token) {
+                    throw new Error(
+                        "Bạn chưa đăng nhập."
+                    );
+                }
+
+                setUploadLoading(
+                    true
+                );
+
+                let mimeType =
+                    pickedFile.mimeType;
+
+                if (!mimeType) {
+                    const extension =
+                        pickedFile.name
+                            ?.split(".")
+                            .pop()
+                            ?.toLowerCase();
+
+                    if (
+                        extension ===
+                        "pdf"
+                    ) {
+                        mimeType =
+                            "application/pdf";
+                    } else if (
+                        extension ===
+                        "docx"
+                    ) {
+                        mimeType =
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    } else if (
+                        extension ===
+                        "txt"
+                    ) {
+                        mimeType =
+                            "text/plain";
+                    } else {
+                        mimeType =
+                            "application/octet-stream";
+                    }
+                }
+
+                const uploadFile =
+                    new File(
+                        pickedFile.uri
+                    );
+
+                console.log(
+                    "UPLOAD FILE EXISTS:",
+                    uploadFile.exists
+                );
+
+                console.log(
+                    "UPLOAD FILE SIZE:",
+                    uploadFile.size
+                );
+
+                const uploadTask =
+                    uploadFile
+                        .createUploadTask(
+                            `${API_BASE_URL}/documents/upload`,
+                            {
+                                httpMethod:
+                                    "POST",
+
+                                uploadType:
+                                    UploadType
+                                        .MULTIPART,
+
+                                fieldName:
+                                    "file",
+
+                                mimeType,
+
+                                parameters: {
+                                    originalName:
+                                        pickedFile.name,
+                                },
+
+                                headers: {
+                                    Authorization:
+                                        `Bearer ${token}`,
+                                },
+                            }
+                        );
+
+                const uploadResponse =
+                    await uploadTask
+                        .uploadAsync();
+
+                console.log(
+                    "UPLOAD STATUS:",
+                    uploadResponse.status
+                );
+
+                console.log(
+                    "UPLOAD RESPONSE:",
+                    uploadResponse.body
+                );
+
+                let responseData =
+                    {};
+
+                try {
+                    responseData =
+                        uploadResponse.body
+                            ? JSON.parse(
+                                  uploadResponse.body
+                              )
+                            : {};
+                } catch {
+                    throw new Error(
+                        "Server không trả về JSON hợp lệ."
+                    );
+                }
+
+                if (
+                    uploadResponse.status ===
+                    401
+                ) {
+                    await removeToken();
+
+                    throw new Error(
+                        responseData.message ||
+                            "Phiên đăng nhập đã hết hạn."
+                    );
+                }
+
+                if (
+                    uploadResponse.status <
+                        200 ||
+                    uploadResponse.status >=
+                        300
+                ) {
+                    throw new Error(
+                        responseData.message ||
+                            "Upload tài liệu thất bại."
+                    );
+                }
+
+                console.log(
+                    "DOCUMENT UPLOAD SUCCESS:",
+                    responseData.success
+                );
+
+                Alert.alert(
+                    "Thành công",
+                    responseData.message ||
+                        "Tải tài liệu lên thành công."
+                );
+
+                await loadDocuments(
+                    false
+                );
+            } catch (error) {
+                console.log(
+                    "DOCUMENT UPLOAD ERROR:",
+                    error.message
+                );
+
+                setError(
+                    error.message ||
+                        "Không thể tải tài liệu lên."
+                );
+            } finally {
+                setUploadLoading(
+                    false
+                );
+            }
+        };
+
+    // ========================================
     // DETAIL
-    // =========================
+    // ========================================
 
-    const handleOpenDetail = (document) => {
-        navigation.navigate("DocumentDetail", {
-            document: document,
-        });
+    const handleOpenDetail = (
+        document
+    ) => {
+        navigation.navigate(
+            "DocumentDetail",
+            {
+                document,
+            }
+        );
     };
 
-    // =========================
+    // ========================================
     // RENAME
-    // =========================
+    // ========================================
 
-    const handleOpenRename = (document) => {
-        setSelectedDocumentId(document.id);
-        setNewName(document.name);
-        setIsRenameModalVisible(true);
-    };
-
-    const handleRename = () => {
-        const trimmedName = newName.trim();
-
-        if (!trimmedName) {
-            Alert.alert(
-                "Lỗi",
-                "Tên tài liệu không được để trống."
-            );
-
-            return;
-        }
-
-        setDocuments((currentDocuments) =>
-            currentDocuments.map((document) =>
-                document.id === selectedDocumentId
-                    ? {
-                          ...document,
-                          name: trimmedName,
-                      }
-                    : document
+    const handleOpenRename = (
+        document
+    ) => {
+        setSelectedDocumentId(
+            getDocumentId(
+                document
             )
         );
 
-        setIsRenameModalVisible(false);
-        setSelectedDocumentId(null);
-        setNewName("");
+        setNewName(
+            getDocumentName(
+                document
+            )
+        );
 
-        Alert.alert(
-            "Thành công",
-            "Đã đổi tên tài liệu."
+        setIsRenameModalVisible(
+            true
         );
     };
 
-    const handleCancelRename = () => {
-        setIsRenameModalVisible(false);
-        setSelectedDocumentId(null);
-        setNewName("");
+    const handleCancelRename =
+        () => {
+            setIsRenameModalVisible(
+                false
+            );
+
+            setSelectedDocumentId(
+                null
+            );
+
+            setNewName("");
+        };
+
+    const handleRename =
+        async () => {
+            const trimmedName =
+                newName.trim();
+
+            if (!trimmedName) {
+                Alert.alert(
+                    "Lỗi",
+                    "Tên tài liệu không được để trống."
+                );
+
+                return;
+            }
+
+            if (
+                !selectedDocumentId
+            ) {
+                return;
+            }
+
+            try {
+                setActionLoading(
+                    true
+                );
+
+                const result =
+                    await apiRequest(
+                        `/documents/${selectedDocumentId}`,
+                        {
+                            method:
+                                "PUT",
+
+                            body:
+                                JSON.stringify(
+                                    {
+                                        name:
+                                            trimmedName,
+                                    }
+                                ),
+                        }
+                    );
+
+                console.log(
+                    "DOCUMENT RENAME SUCCESS:",
+                    result?.success
+                );
+
+                handleCancelRename();
+
+                await loadDocuments(
+                    false
+                );
+
+                Alert.alert(
+                    "Thành công",
+                    result?.message ||
+                        "Đã đổi tên tài liệu."
+                );
+            } catch (error) {
+                console.log(
+                    "DOCUMENT RENAME ERROR:",
+                    error.message
+                );
+
+                Alert.alert(
+                    "Lỗi",
+                    error.message ||
+                        "Không thể đổi tên tài liệu."
+                );
+            } finally {
+                setActionLoading(
+                    false
+                );
+            }
+        };
+
+    // ========================================
+    // CLASSIFY
+    // ========================================
+
+    const handleOpenClassify = (
+        document
+    ) => {
+        setSelectedDocumentId(
+            getDocumentId(
+                document
+            )
+        );
+
+        setNewSubject(
+            document.subject || ""
+        );
+
+        setNewTopic(
+            document.topic || ""
+        );
+
+        setIsClassifyModalVisible(
+            true
+        );
     };
 
-    // =========================
-    // DELETE
-    // =========================
+    const handleCancelClassify =
+        () => {
+            setIsClassifyModalVisible(
+                false
+            );
 
-    const handleDelete = (documentId) => {
+            setSelectedDocumentId(
+                null
+            );
+
+            setNewSubject("");
+            setNewTopic("");
+        };
+
+    const handleSaveClassify =
+        async () => {
+            const subject =
+                newSubject.trim();
+
+            const topic =
+                newTopic.trim();
+
+            if (
+                !subject &&
+                !topic
+            ) {
+                Alert.alert(
+                    "Lỗi",
+                    "Vui lòng nhập môn học hoặc chủ đề."
+                );
+
+                return;
+            }
+
+            if (
+                !selectedDocumentId
+            ) {
+                return;
+            }
+
+            try {
+                setActionLoading(
+                    true
+                );
+
+                const result =
+                    await apiRequest(
+                        `/documents/${selectedDocumentId}`,
+                        {
+                            method:
+                                "PUT",
+
+                            body:
+                                JSON.stringify(
+                                    {
+                                        subject,
+                                        topic,
+                                    }
+                                ),
+                        }
+                    );
+
+                console.log(
+                    "DOCUMENT CLASSIFY SUCCESS:",
+                    result?.success
+                );
+
+                handleCancelClassify();
+
+                await loadDocuments(
+                    false
+                );
+
+                Alert.alert(
+                    "Thành công",
+                    result?.message ||
+                        "Đã cập nhật môn học và chủ đề."
+                );
+            } catch (error) {
+                console.log(
+                    "DOCUMENT CLASSIFY ERROR:",
+                    error.message
+                );
+
+                Alert.alert(
+                    "Lỗi",
+                    error.message ||
+                        "Không thể cập nhật phân loại."
+                );
+            } finally {
+                setActionLoading(
+                    false
+                );
+            }
+        };
+
+    // ========================================
+    // DELETE
+    // ========================================
+
+    const deleteDocument =
+        async (
+            documentId
+        ) => {
+            try {
+                setActionLoading(
+                    true
+                );
+
+                const result =
+                    await apiRequest(
+                        `/documents/${documentId}`,
+                        {
+                            method:
+                                "DELETE",
+                        }
+                    );
+
+                console.log(
+                    "DOCUMENT DELETE SUCCESS:",
+                    result?.success
+                );
+
+                setDocuments(
+                    (
+                        currentDocuments
+                    ) =>
+                        currentDocuments.filter(
+                            (
+                                document
+                            ) =>
+                                getDocumentId(
+                                    document
+                                ) !==
+                                documentId
+                        )
+                );
+
+                Alert.alert(
+                    "Thành công",
+                    result?.message ||
+                        "Đã xóa tài liệu."
+                );
+            } catch (error) {
+                console.log(
+                    "DOCUMENT DELETE ERROR:",
+                    error.message
+                );
+
+                Alert.alert(
+                    "Lỗi",
+                    error.message ||
+                        "Không thể xóa tài liệu."
+                );
+            } finally {
+                setActionLoading(
+                    false
+                );
+            }
+        };
+
+    const handleDelete = (
+        document
+    ) => {
+        const documentId =
+            getDocumentId(
+                document
+            );
+
+        if (!documentId) {
+            return;
+        }
+
         Alert.alert(
             "Xóa tài liệu",
-            "Bạn có chắc chắn muốn xóa tài liệu này không?",
+            `Bạn có chắc chắn muốn xóa "${getDocumentName(
+                document
+            )}" không?`,
             [
                 {
                     text: "Hủy",
@@ -189,222 +808,346 @@ export default function DocumentsScreen({ navigation }) {
                 },
                 {
                     text: "Xóa",
-                    style: "destructive",
-                    onPress: () => {
-                        setDocuments((currentDocuments) =>
-                            currentDocuments.filter(
-                                (document) =>
-                                    document.id !==
-                                    documentId
-                            )
-                        );
-                    },
+                    style:
+                        "destructive",
+
+                    onPress:
+                        () =>
+                            deleteDocument(
+                                documentId
+                            ),
                 },
             ]
         );
     };
 
-    // =========================
-    // SUBJECT
-    // =========================
+    // ========================================
+    // FORMAT SIZE
+    // ========================================
 
-    const handleOpenSubject = (document) => {
-        setSelectedDocumentId(document.id);
-        setNewSubject(document.subject || "");
-        setIsSubjectModalVisible(true);
-    };
+    const formatFileSize = (
+        size
+    ) => {
+        const number =
+            Number(size);
 
-    const handleSaveSubject = () => {
-        const trimmedSubject = newSubject.trim();
-
-        if (!trimmedSubject) {
-            Alert.alert(
-                "Lỗi",
-                "Môn học không được để trống."
-            );
-
-            return;
+        if (
+            !number ||
+            Number.isNaN(number)
+        ) {
+            return "Không xác định";
         }
 
-        setDocuments((currentDocuments) =>
-            currentDocuments.map((document) =>
-                document.id === selectedDocumentId
-                    ? {
-                          ...document,
-                          subject: trimmedSubject,
-                      }
-                    : document
-            )
-        );
-
-        setIsSubjectModalVisible(false);
-        setSelectedDocumentId(null);
-        setNewSubject("");
-
-        Alert.alert(
-            "Thành công",
-            "Đã cập nhật môn học."
-        );
-    };
-
-    const handleCancelSubject = () => {
-        setIsSubjectModalVisible(false);
-        setSelectedDocumentId(null);
-        setNewSubject("");
-    };
-
-    // =========================
-    // TOPIC
-    // =========================
-
-    const handleOpenTopic = (document) => {
-        setSelectedDocumentId(document.id);
-        setNewTopic(document.topic || "");
-        setIsTopicModalVisible(true);
-    };
-
-    const handleSaveTopic = () => {
-        const trimmedTopic = newTopic.trim();
-
-        if (!trimmedTopic) {
-            Alert.alert(
-                "Lỗi",
-                "Chủ đề không được để trống."
-            );
-
-            return;
+        if (number < 1024) {
+            return `${number} B`;
         }
 
-        setDocuments((currentDocuments) =>
-            currentDocuments.map((document) =>
-                document.id === selectedDocumentId
-                    ? {
-                          ...document,
-                          topic: trimmedTopic,
-                      }
-                    : document
+        if (
+            number <
+            1024 * 1024
+        ) {
+            return `${(
+                number / 1024
+            ).toFixed(1)} KB`;
+        }
+
+        return `${(
+            number /
+            (1024 * 1024)
+        ).toFixed(1)} MB`;
+    };
+
+    // ========================================
+    // FORMAT DATE
+    // ========================================
+
+    const formatDate = (
+        value
+    ) => {
+        if (!value) {
+            return "";
+        }
+
+        const date =
+            new Date(value);
+
+        if (
+            Number.isNaN(
+                date.getTime()
             )
-        );
+        ) {
+            return "";
+        }
 
-        setIsTopicModalVisible(false);
-        setSelectedDocumentId(null);
-        setNewTopic("");
-
-        Alert.alert(
-            "Thành công",
-            "Đã cập nhật chủ đề."
+        return date.toLocaleDateString(
+            "vi-VN"
         );
     };
 
-    const handleCancelTopic = () => {
-        setIsTopicModalVisible(false);
-        setSelectedDocumentId(null);
-        setNewTopic("");
-    };
+    // ========================================
+    // FILE TYPE
+    // ========================================
 
-    // =========================
-    // DOCUMENT CARD
-    // =========================
+    const getFileType = (
+        document
+    ) => {
+        const name =
+            getDocumentName(
+                document
+            );
 
-    const renderDocument = ({ item }) => {
+        const extension =
+            name
+                .split(".")
+                .pop()
+                ?.toUpperCase();
+
         return (
-            <View style={styles.documentCard}>
-                {/* CLICK TO DETAIL */}
+            extension ||
+            document?.fileType ||
+            "FILE"
+        );
+    };
+
+    // ========================================
+    // RENDER DOCUMENT
+    // ========================================
+
+    const renderDocument = ({
+        item,
+    }) => {
+        const name =
+            getDocumentName(
+                item
+            );
+
+        const date =
+            formatDate(
+                item.createdAt ||
+                    item.updatedAt ||
+                    item.date
+            );
+
+        return (
+            <View
+                style={
+                    styles.documentCard
+                }
+            >
                 <TouchableOpacity
-                    style={styles.documentMain}
-                    onPress={() =>
-                        handleOpenDetail(item)
+                    style={
+                        styles.documentMain
                     }
-                    activeOpacity={0.7}
+                    onPress={() =>
+                        handleOpenDetail(
+                            item
+                        )
+                    }
+                    activeOpacity={
+                        0.75
+                    }
                 >
-                    <View style={styles.fileIcon}>
-                        <Text style={styles.fileIconText}>
+                    <View
+                        style={
+                            styles.fileIcon
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.fileIconText
+                            }
+                        >
                             📄
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.fileType
+                            }
+                        >
+                            {getFileType(
+                                item
+                            )}
                         </Text>
                     </View>
 
-                    <View style={styles.documentInfo}>
+                    <View
+                        style={
+                            styles.documentInfo
+                        }
+                    >
                         <Text
-                            style={styles.fileName}
-                            numberOfLines={1}
+                            style={
+                                styles.fileName
+                            }
+                            numberOfLines={
+                                2
+                            }
                         >
-                            {item.name}
+                            {name}
                         </Text>
 
-                        <Text style={styles.fileSize}>
-                            {item.size > 0
-                                ? `${(
-                                      item.size / 1024
-                                  ).toFixed(2)} KB`
-                                : "Không xác định"}
-                        </Text>
+                        <View
+                            style={
+                                styles.metaRow
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.metaText
+                                }
+                            >
+                                {formatFileSize(
+                                    item.size ||
+                                        item.fileSize
+                                )}
+                            </Text>
 
-                        <Text style={styles.fileDate}>
-                            Thêm ngày: {item.date}
-                        </Text>
+                            {date ? (
+                                <>
+                                    <Text
+                                        style={
+                                            styles.metaDot
+                                        }
+                                    >
+                                        •
+                                    </Text>
 
-                        <Text style={styles.subjectText}>
-                            Môn học:{" "}
-                            {item.subject || "Chưa có"}
-                        </Text>
+                                    <Text
+                                        style={
+                                            styles.metaText
+                                        }
+                                    >
+                                        {date}
+                                    </Text>
+                                </>
+                            ) : null}
+                        </View>
 
-                        <Text style={styles.topicText}>
-                            Chủ đề:{" "}
-                            {item.topic || "Chưa có"}
-                        </Text>
+                        {item.subject ? (
+                            <Text
+                                style={
+                                    styles.subjectText
+                                }
+                                numberOfLines={
+                                    1
+                                }
+                            >
+                                Môn học:{" "}
+                                {item.subject}
+                            </Text>
+                        ) : null}
+
+                        {item.topic ? (
+                            <Text
+                                style={
+                                    styles.topicText
+                                }
+                                numberOfLines={
+                                    1
+                                }
+                            >
+                                Chủ đề:{" "}
+                                {item.topic}
+                            </Text>
+                        ) : null}
                     </View>
                 </TouchableOpacity>
 
-                {/* ACTION BUTTONS */}
+                <View
+                    style={
+                        styles.divider
+                    }
+                />
 
-                <View style={styles.documentActions}>
+                <View
+                    style={
+                        styles.documentActions
+                    }
+                >
                     <TouchableOpacity
-                        style={styles.actionButton}
+                        style={
+                            styles.secondaryButton
+                        }
                         onPress={() =>
-                            handleOpenSubject(item)
+                            handleOpenDetail(
+                                item
+                            )
+                        }
+                        disabled={
+                            actionLoading
                         }
                     >
                         <Text
-                            style={styles.actionButtonText}
+                            style={
+                                styles.secondaryButtonText
+                            }
                         >
-                            Môn học
+                            Xem
                         </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.actionButton}
+                        style={
+                            styles.secondaryButton
+                        }
                         onPress={() =>
-                            handleOpenTopic(item)
+                            handleOpenClassify(
+                                item
+                            )
+                        }
+                        disabled={
+                            actionLoading
                         }
                     >
                         <Text
-                            style={styles.actionButtonText}
+                            style={
+                                styles.secondaryButtonText
+                            }
                         >
-                            Chủ đề
+                            Phân loại
                         </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.actionButton}
+                        style={
+                            styles.secondaryButton
+                        }
                         onPress={() =>
-                            handleOpenRename(item)
+                            handleOpenRename(
+                                item
+                            )
+                        }
+                        disabled={
+                            actionLoading
                         }
                     >
                         <Text
-                            style={styles.actionButtonText}
+                            style={
+                                styles.secondaryButtonText
+                            }
                         >
                             Đổi tên
                         </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.deleteButton}
+                        style={
+                            styles.deleteButton
+                        }
                         onPress={() =>
-                            handleDelete(item.id)
+                            handleDelete(
+                                item
+                            )
+                        }
+                        disabled={
+                            actionLoading
                         }
                     >
                         <Text
-                            style={styles.deleteButtonText}
+                            style={
+                                styles.deleteButtonText
+                            }
                         >
                             Xóa
                         </Text>
@@ -414,190 +1157,345 @@ export default function DocumentsScreen({ navigation }) {
         );
     };
 
-    // =========================
+    // ========================================
     // UI
-    // =========================
+    // ========================================
 
     return (
-        <View style={styles.container}>
-            {/* HEADER */}
+        <View
+            style={
+                styles.container
+            }
+        >
+            <View
+                style={
+                    styles.header
+                }
+            >
+                <View>
+                    <Text
+                        style={
+                            styles.title
+                        }
+                    >
+                        Tài liệu
+                    </Text>
 
-            <View style={styles.header}>
-                <Text style={styles.title}>
-                    Tài liệu
-                </Text>
+                    <Text
+                        style={
+                            styles.subtitle
+                        }
+                    >
+                        {documents.length} tài
+                        liệu của bạn
+                    </Text>
+                </View>
 
                 <TouchableOpacity
                     style={[
                         styles.uploadButton,
-                        isLoading &&
+
+                        uploadLoading &&
                             styles.disabledButton,
                     ]}
-                    onPress={handleUpload}
-                    disabled={isLoading}
+                    onPress={
+                        handleUpload
+                    }
+                    disabled={
+                        uploadLoading
+                    }
                 >
-                    {isLoading ? (
+                    {uploadLoading ? (
                         <ActivityIndicator
                             size="small"
-                            color={colors.white}
+                            color={
+                                colors.white
+                            }
                         />
                     ) : (
-                        <Text style={styles.uploadButtonText}>
+                        <Text
+                            style={
+                                styles.uploadButtonText
+                            }
+                        >
                             + Tải lên
                         </Text>
                     )}
                 </TouchableOpacity>
             </View>
 
-            {/* ERROR */}
-
             {error ? (
-                <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>
+                <View
+                    style={
+                        styles.errorContainer
+                    }
+                >
+                    <Text
+                        style={
+                            styles.errorText
+                        }
+                    >
                         {error}
                     </Text>
 
                     <TouchableOpacity
-                        onPress={() => setError("")}
+                        onPress={() =>
+                            loadDocuments()
+                        }
                     >
-                        <Text style={styles.closeError}>
-                            Đóng
+                        <Text
+                            style={
+                                styles.retryText
+                            }
+                        >
+                            Thử lại
                         </Text>
                     </TouchableOpacity>
                 </View>
             ) : null}
 
-            {/* LOADING / LIST / EMPTY */}
-
             {isLoading ? (
-                <View style={styles.loadingContainer}>
+                <View
+                    style={
+                        styles.loadingContainer
+                    }
+                >
                     <ActivityIndicator
                         size="large"
-                        color={colors.primary}
+                        color={
+                            colors.primary
+                        }
                     />
 
-                    <Text style={styles.loadingText}>
-                        Đang xử lý tài liệu...
-                    </Text>
-                </View>
-            ) : documents.length > 0 ? (
-                <FlatList
-                    data={documents}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderDocument}
-                    showsVerticalScrollIndicator={false}
-                />
-            ) : (
-                <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyTitle}>
-                        Chưa có tài liệu
-                    </Text>
-
-                    <Text style={styles.emptyText}>
-                        Hãy tải tài liệu lên để bắt đầu
-                        học cùng AI.
-                    </Text>
-
-                    <TouchableOpacity
-                        style={styles.emptyButton}
-                        onPress={handleUpload}
+                    <Text
+                        style={
+                            styles.loadingText
+                        }
                     >
-                        <Text style={styles.emptyButtonText}>
-                            + Tải tài liệu lên
-                        </Text>
-                    </TouchableOpacity>
+                        Đang tải tài liệu...
+                    </Text>
                 </View>
-            )}
-
-            {/* =========================
-                RENAME MODAL
-            ========================= */}
-
-            <Modal
-                visible={isRenameModalVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={handleCancelRename}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>
-                            Đổi tên tài liệu
-                        </Text>
-
-                        <TextInput
-                            style={styles.input}
-                            value={newName}
-                            onChangeText={setNewName}
-                            placeholder="Nhập tên tài liệu"
-                            placeholderTextColor={
-                                colors.gray
+            ) : (
+                <FlatList
+                    data={
+                        documents
+                    }
+                    keyExtractor={(
+                        item,
+                        index
+                    ) =>
+                        String(
+                            getDocumentId(
+                                item
+                            ) ??
+                                index
+                        )
+                    }
+                    renderItem={
+                        renderDocument
+                    }
+                    showsVerticalScrollIndicator={
+                        false
+                    }
+                    contentContainerStyle={
+                        documents.length ===
+                        0
+                            ? styles.emptyList
+                            : styles.listContent
+                    }
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={
+                                refreshing
                             }
-                            autoFocus
+                            onRefresh={
+                                handleRefresh
+                            }
                         />
-
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={handleCancelRename}
+                    }
+                    ListEmptyComponent={
+                        <View
+                            style={
+                                styles.emptyContainer
+                            }
+                        >
+                            <View
+                                style={
+                                    styles.emptyIcon
+                                }
                             >
                                 <Text
                                     style={
-                                        styles.cancelButtonText
+                                        styles.emptyIconText
                                     }
                                 >
-                                    Hủy
+                                    📄
                                 </Text>
-                            </TouchableOpacity>
+                            </View>
+
+                            <Text
+                                style={
+                                    styles.emptyTitle
+                                }
+                            >
+                                Chưa có tài liệu
+                            </Text>
+
+                            <Text
+                                style={
+                                    styles.emptyText
+                                }
+                            >
+                                Tải PDF, DOCX hoặc TXT
+                                lên để bắt đầu học
+                                cùng AI.
+                            </Text>
 
                             <TouchableOpacity
-                                style={styles.saveButton}
-                                onPress={handleRename}
+                                style={[
+                                    styles.emptyButton,
+
+                                    uploadLoading &&
+                                        styles.disabledButton,
+                                ]}
+                                onPress={
+                                    handleUpload
+                                }
+                                disabled={
+                                    uploadLoading
+                                }
                             >
-                                <Text
-                                    style={
-                                        styles.saveButtonText
-                                    }
-                                >
-                                    Lưu
-                                </Text>
+                                {uploadLoading ? (
+                                    <ActivityIndicator
+                                        color={
+                                            colors.white
+                                        }
+                                    />
+                                ) : (
+                                    <Text
+                                        style={
+                                            styles.emptyButtonText
+                                        }
+                                    >
+                                        + Tải tài liệu lên
+                                    </Text>
+                                )}
                             </TouchableOpacity>
                         </View>
-                    </View>
-                </View>
-            </Modal>
+                    }
+                />
+            )}
 
-            {/* =========================
-                SUBJECT MODAL
-            ========================= */}
+            {/* =================================
+                CLASSIFY MODAL
+            ================================= */}
 
             <Modal
-                visible={isSubjectModalVisible}
+                visible={
+                    isClassifyModalVisible
+                }
                 transparent
                 animationType="fade"
-                onRequestClose={handleCancelSubject}
+                onRequestClose={
+                    handleCancelClassify
+                }
             >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>
+                <View
+                    style={
+                        styles.modalOverlay
+                    }
+                >
+                    <View
+                        style={
+                            styles.modalContainer
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.modalTitle
+                            }
+                        >
+                            Phân loại tài liệu
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.modalDescription
+                            }
+                        >
+                            Thêm môn học và chủ đề để quản lý tài liệu dễ hơn.
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.inputLabel
+                            }
+                        >
                             Môn học
                         </Text>
 
                         <TextInput
-                            style={styles.input}
-                            value={newSubject}
-                            onChangeText={setNewSubject}
+                            style={
+                                styles.input
+                            }
+                            value={
+                                newSubject
+                            }
+                            onChangeText={
+                                setNewSubject
+                            }
                             placeholder="Ví dụ: Lập trình Mobile"
                             placeholderTextColor={
                                 colors.gray
                             }
-                            autoFocus
+                            editable={
+                                !actionLoading
+                            }
                         />
 
-                        <View style={styles.modalActions}>
+                        <Text
+                            style={[
+                                styles.inputLabel,
+                                styles.topicLabel,
+                            ]}
+                        >
+                            Chủ đề
+                        </Text>
+
+                        <TextInput
+                            style={
+                                styles.input
+                            }
+                            value={
+                                newTopic
+                            }
+                            onChangeText={
+                                setNewTopic
+                            }
+                            placeholder="Ví dụ: React Native"
+                            placeholderTextColor={
+                                colors.gray
+                            }
+                            editable={
+                                !actionLoading
+                            }
+                        />
+
+                        <View
+                            style={
+                                styles.modalActions
+                            }
+                        >
                             <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={handleCancelSubject}
+                                style={
+                                    styles.cancelButton
+                                }
+                                onPress={
+                                    handleCancelClassify
+                                }
+                                disabled={
+                                    actionLoading
+                                }
                             >
                                 <Text
                                     style={
@@ -609,53 +1507,116 @@ export default function DocumentsScreen({ navigation }) {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={styles.saveButton}
-                                onPress={handleSaveSubject}
+                                style={[
+                                    styles.saveButton,
+
+                                    actionLoading &&
+                                        styles.disabledButton,
+                                ]}
+                                onPress={
+                                    handleSaveClassify
+                                }
+                                disabled={
+                                    actionLoading
+                                }
                             >
-                                <Text
-                                    style={
-                                        styles.saveButtonText
-                                    }
-                                >
-                                    Lưu
-                                </Text>
+                                {actionLoading ? (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color={
+                                            colors.white
+                                        }
+                                    />
+                                ) : (
+                                    <Text
+                                        style={
+                                            styles.saveButtonText
+                                        }
+                                    >
+                                        Lưu
+                                    </Text>
+                                )}
                             </TouchableOpacity>
                         </View>
                     </View>
                 </View>
             </Modal>
 
-            {/* =========================
-                TOPIC MODAL
-            ========================= */}
+            {/* =================================
+                RENAME MODAL
+            ================================= */}
 
             <Modal
-                visible={isTopicModalVisible}
+                visible={
+                    isRenameModalVisible
+                }
                 transparent
                 animationType="fade"
-                onRequestClose={handleCancelTopic}
+                onRequestClose={
+                    handleCancelRename
+                }
             >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>
-                            Chủ đề
+                <View
+                    style={
+                        styles.modalOverlay
+                    }
+                >
+                    <View
+                        style={
+                            styles.modalContainer
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.modalTitle
+                            }
+                        >
+                            Đổi tên tài liệu
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.modalDescription
+                            }
+                        >
+                            Nhập tên mới cho tài liệu.
                         </Text>
 
                         <TextInput
-                            style={styles.input}
-                            value={newTopic}
-                            onChangeText={setNewTopic}
-                            placeholder="Ví dụ: React Native & Expo"
+                            style={
+                                styles.input
+                            }
+                            value={
+                                newName
+                            }
+                            onChangeText={
+                                setNewName
+                            }
+                            placeholder="Tên tài liệu"
                             placeholderTextColor={
                                 colors.gray
+                            }
+                            editable={
+                                !actionLoading
                             }
                             autoFocus
                         />
 
-                        <View style={styles.modalActions}>
+                        <View
+                            style={
+                                styles.modalActions
+                            }
+                        >
                             <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={handleCancelTopic}
+                                style={
+                                    styles.cancelButton
+                                }
+                                onPress={
+                                    handleCancelRename
+                                }
+                                disabled={
+                                    actionLoading
+                                }
                             >
                                 <Text
                                     style={
@@ -667,16 +1628,35 @@ export default function DocumentsScreen({ navigation }) {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={styles.saveButton}
-                                onPress={handleSaveTopic}
+                                style={[
+                                    styles.saveButton,
+
+                                    actionLoading &&
+                                        styles.disabledButton,
+                                ]}
+                                onPress={
+                                    handleRename
+                                }
+                                disabled={
+                                    actionLoading
+                                }
                             >
-                                <Text
-                                    style={
-                                        styles.saveButtonText
-                                    }
-                                >
-                                    Lưu
-                                </Text>
+                                {actionLoading ? (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color={
+                                            colors.white
+                                        }
+                                    />
+                                ) : (
+                                    <Text
+                                        style={
+                                            styles.saveButtonText
+                                        }
+                                    >
+                                        Lưu
+                                    </Text>
+                                )}
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -689,14 +1669,17 @@ export default function DocumentsScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
-        padding: 20,
+        backgroundColor:
+            colors.background,
+        paddingHorizontal: 20,
+        paddingTop: 20,
     },
 
     header: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent:
+            "space-between",
         marginBottom: 20,
     },
 
@@ -706,18 +1689,21 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
 
+    subtitle: {
+        fontSize: 13,
+        color: colors.gray,
+        marginTop: 4,
+    },
+
     uploadButton: {
-        backgroundColor: colors.primary,
+        height: 44,
+        minWidth: 96,
         paddingHorizontal: 16,
-        height: 42,
+        backgroundColor:
+            colors.primary,
         borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",
-        minWidth: 90,
-    },
-
-    disabledButton: {
-        opacity: 0.6,
     },
 
     uploadButtonText: {
@@ -726,35 +1712,50 @@ const styles = StyleSheet.create({
         color: colors.white,
     },
 
+    disabledButton: {
+        opacity: 0.6,
+    },
+
+    listContent: {
+        paddingBottom: 30,
+    },
+
     documentCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 12,
+        borderColor:
+            colors.border,
+        borderRadius: 14,
         padding: 14,
-        marginBottom: 12,
+        marginBottom: 14,
     },
 
     documentMain: {
-        flex: 1,
         flexDirection: "row",
         alignItems: "center",
     },
 
     fileIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 10,
-        backgroundColor: colors.background,
+        width: 58,
+        height: 58,
+        borderRadius: 12,
+        backgroundColor:
+            colors.background,
         alignItems: "center",
         justifyContent: "center",
-        marginRight: 12,
+        marginRight: 14,
     },
 
     fileIconText: {
-        fontSize: 24,
+        fontSize: 25,
+    },
+
+    fileType: {
+        fontSize: 9,
+        fontWeight: "700",
+        color: colors.primary,
+        marginTop: 2,
     },
 
     documentInfo: {
@@ -763,106 +1764,94 @@ const styles = StyleSheet.create({
 
     fileName: {
         fontSize: 16,
+        lineHeight: 21,
         fontWeight: "600",
         color: colors.text,
-        marginBottom: 5,
     },
 
-    fileSize: {
-        fontSize: 13,
-        color: colors.gray,
+    metaRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 6,
     },
 
-    fileDate: {
+    metaText: {
         fontSize: 12,
         color: colors.gray,
-        marginTop: 3,
+    },
+
+    metaDot: {
+        fontSize: 12,
+        color: colors.gray,
+        marginHorizontal: 7,
     },
 
     subjectText: {
+        marginTop: 8,
         fontSize: 12,
-        color: colors.primary,
-        marginTop: 4,
+        lineHeight: 18,
         fontWeight: "600",
+        color: colors.primary,
     },
 
     topicText: {
+        marginTop: 2,
         fontSize: 12,
-        color: colors.primary,
-        marginTop: 3,
-        fontWeight: "600",
+        lineHeight: 18,
+        color: colors.gray,
+    },
+
+    divider: {
+        height: 1,
+        backgroundColor:
+            colors.border,
+        marginVertical: 13,
     },
 
     documentActions: {
-        alignItems: "flex-end",
-        marginLeft: 8,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent:
+            "space-between",
+        gap: 8,
     },
 
-    actionButton: {
-        paddingHorizontal: 10,
-        paddingVertical: 8,
+    secondaryButton: {
+        width: "48%",
+        height: 38,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         borderRadius: 8,
-        marginBottom: 6,
+        backgroundColor:
+            colors.white,
+        alignItems: "center",
+        justifyContent: "center",
     },
 
-    actionButtonText: {
+    secondaryButtonText: {
         fontSize: 12,
         fontWeight: "600",
         color: colors.text,
     },
 
     deleteButton: {
-        paddingHorizontal: 10,
-        paddingVertical: 8,
+        width: "48%",
+        height: 38,
         borderWidth: 1,
-        borderColor: colors.error,
+        borderColor:
+            colors.error,
         borderRadius: 8,
+        backgroundColor:
+            colors.white,
+        alignItems: "center",
+        justifyContent: "center",
     },
 
     deleteButtonText: {
         fontSize: 12,
         fontWeight: "600",
         color: colors.error,
-    },
-
-    emptyContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingBottom: 80,
-    },
-
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 8,
-    },
-
-    emptyText: {
-        fontSize: 14,
-        lineHeight: 20,
-        color: colors.gray,
-        textAlign: "center",
-        maxWidth: 280,
-        marginBottom: 20,
-    },
-
-    emptyButton: {
-        height: 48,
-        backgroundColor: colors.primary,
-        borderRadius: 10,
-        paddingHorizontal: 20,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-
-    emptyButtonText: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: colors.white,
     },
 
     loadingContainer: {
@@ -881,32 +1870,97 @@ const styles = StyleSheet.create({
     errorContainer: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: "#FEF2F2",
+        justifyContent:
+            "space-between",
+        backgroundColor:
+            "#FEF2F2",
         borderWidth: 1,
-        borderColor: colors.error,
+        borderColor:
+            colors.error,
         borderRadius: 10,
         padding: 12,
-        marginBottom: 12,
+        marginBottom: 14,
     },
 
     errorText: {
         flex: 1,
-        fontSize: 14,
-        lineHeight: 20,
+        fontSize: 13,
+        lineHeight: 19,
         color: colors.error,
         marginRight: 10,
     },
 
-    closeError: {
+    retryText: {
         fontSize: 13,
-        fontWeight: "600",
+        fontWeight: "700",
         color: colors.error,
+    },
+
+    emptyList: {
+        flexGrow: 1,
+    },
+
+    emptyContainer: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingBottom: 100,
+    },
+
+    emptyIcon: {
+        width: 76,
+        height: 76,
+        borderRadius: 20,
+        backgroundColor:
+            colors.white,
+        borderWidth: 1,
+        borderColor:
+            colors.border,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 18,
+    },
+
+    emptyIconText: {
+        fontSize: 34,
+    },
+
+    emptyTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 8,
+    },
+
+    emptyText: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: colors.gray,
+        textAlign: "center",
+        maxWidth: 290,
+        marginBottom: 20,
+    },
+
+    emptyButton: {
+        height: 48,
+        backgroundColor:
+            colors.primary,
+        borderRadius: 10,
+        paddingHorizontal: 20,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+
+    emptyButtonText: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: colors.white,
     },
 
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        backgroundColor:
+            "rgba(0, 0, 0, 0.4)",
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
@@ -914,7 +1968,8 @@ const styles = StyleSheet.create({
 
     modalContainer: {
         width: "100%",
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderRadius: 14,
         padding: 20,
     },
@@ -923,17 +1978,38 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: "700",
         color: colors.text,
+    },
+
+    modalDescription: {
+        fontSize: 13,
+        lineHeight: 19,
+        color: colors.gray,
+        marginTop: 5,
         marginBottom: 16,
+    },
+
+    inputLabel: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 7,
+    },
+
+    topicLabel: {
+        marginTop: 14,
     },
 
     input: {
         height: 50,
         borderWidth: 1,
-        borderColor: colors.primary,
+        borderColor:
+            colors.primary,
         borderRadius: 10,
         paddingHorizontal: 15,
         fontSize: 16,
         color: colors.text,
+        backgroundColor:
+            colors.white,
     },
 
     modalActions: {
@@ -946,7 +2022,8 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 48,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",
@@ -961,7 +2038,8 @@ const styles = StyleSheet.create({
     saveButton: {
         flex: 1,
         height: 48,
-        backgroundColor: colors.primary,
+        backgroundColor:
+            colors.primary,
         borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",

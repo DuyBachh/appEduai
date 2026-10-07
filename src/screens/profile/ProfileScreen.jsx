@@ -1,4 +1,5 @@
 import {
+    useEffect,
     useState,
 } from "react";
 
@@ -28,15 +29,16 @@ export default function ProfileScreen({
 }) {
     const [name, setName] =
         useState(
-            currentUser?.name ||
-                "Người dùng"
+            currentUser?.name || ""
+        );
+
+    const [email, setEmail] =
+        useState(
+            currentUser?.email || ""
         );
 
     const [oldName, setOldName] =
-        useState(
-            currentUser?.name ||
-                "Người dùng"
-        );
+        useState("");
 
     const [
         isEditing,
@@ -44,60 +46,180 @@ export default function ProfileScreen({
     ] = useState(false);
 
     const [
+        profileLoading,
+        setProfileLoading,
+    ] = useState(true);
+
+    const [
+        saveLoading,
+        setSaveLoading,
+    ] = useState(false);
+
+    const [
         logoutLoading,
         setLogoutLoading,
     ] = useState(false);
 
-    const email =
-        currentUser?.email || "";
+    const [
+        profileError,
+        setProfileError,
+    ] = useState("");
 
-    // Bắt đầu chỉnh sửa tên
+    useEffect(() => {
+        const loadProfile =
+            async () => {
+                try {
+                    setProfileLoading(true);
+                    setProfileError("");
+
+                    const result =
+                        await apiRequest(
+                            "/auth/me"
+                        );
+
+                    const user =
+                        result?.data;
+
+                    if (!user) {
+                        throw new Error(
+                            "Không lấy được thông tin người dùng."
+                        );
+                    }
+
+                    setName(
+                        user.name || ""
+                    );
+
+                    setEmail(
+                        user.email || ""
+                    );
+
+                    console.log(
+                        "PROFILE SUCCESS:",
+                        user
+                    );
+                } catch (error) {
+                    console.log(
+                        "PROFILE ERROR:",
+                        error.message
+                    );
+
+                    setProfileError(
+                        error.message ||
+                            "Không thể tải hồ sơ."
+                    );
+                } finally {
+                    setProfileLoading(
+                        false
+                    );
+                }
+            };
+
+        loadProfile();
+    }, []);
+
     const handleEdit = () => {
         setOldName(name);
         setIsEditing(true);
     };
 
-    // Lưu tên mới
-    const handleSave = () => {
-        const trimmedName =
-            name.trim();
+    const handleSave =
+        async () => {
+            const trimmedName =
+                name.trim();
 
-        if (!trimmedName) {
-            Alert.alert(
-                "Lỗi",
-                "Tên không được để trống"
-            );
+            if (!trimmedName) {
+                Alert.alert(
+                    "Lỗi",
+                    "Tên không được để trống"
+                );
 
-            return;
-        }
+                return;
+            }
 
-        if (
-            trimmedName.length < 2
-        ) {
-            Alert.alert(
-                "Lỗi",
-                "Tên phải có ít nhất 2 ký tự"
-            );
+            if (
+                trimmedName.length <
+                2
+            ) {
+                Alert.alert(
+                    "Lỗi",
+                    "Tên phải có ít nhất 2 ký tự"
+                );
 
-            return;
-        }
+                return;
+            }
 
-        setName(trimmedName);
-        setIsEditing(false);
+            try {
+                setSaveLoading(true);
 
-        Alert.alert(
-            "Thành công",
-            "Đã cập nhật thông tin"
-        );
-    };
+                const result =
+                    await apiRequest(
+                        "/auth/profile",
+                        {
+                            method:
+                                "PUT",
 
-    // Hủy chỉnh sửa
+                            body:
+                                JSON.stringify(
+                                    {
+                                        name:
+                                            trimmedName,
+                                    }
+                                ),
+                        }
+                    );
+
+                const updatedUser =
+                    result?.data;
+
+                setName(
+                    updatedUser?.name ||
+                        trimmedName
+                );
+
+                setEmail(
+                    updatedUser?.email ||
+                        email
+                );
+
+                setOldName(
+                    updatedUser?.name ||
+                        trimmedName
+                );
+
+                setIsEditing(false);
+
+                console.log(
+                    "UPDATE PROFILE SUCCESS:",
+                    updatedUser
+                );
+
+                Alert.alert(
+                    "Thành công",
+                    result.message ||
+                        "Đã cập nhật thông tin."
+                );
+            } catch (error) {
+                console.log(
+                    "UPDATE PROFILE ERROR:",
+                    error.message
+                );
+
+                Alert.alert(
+                    "Lỗi",
+                    error.message ||
+                        "Không thể cập nhật thông tin."
+                );
+            } finally {
+                setSaveLoading(false);
+            }
+        };
+
     const handleCancel = () => {
         setName(oldName);
         setIsEditing(false);
     };
 
-    // Gọi API đăng xuất
     const logout = async () => {
         try {
             setLogoutLoading(true);
@@ -121,17 +243,13 @@ export default function ProfileScreen({
                 error.message
             );
         } finally {
-            // Luôn xóa token khỏi máy
             await removeToken();
-
-            // Chuyển AppNavigator về Login
             onLogout();
 
             setLogoutLoading(false);
         }
     };
 
-    // Xác nhận đăng xuất
     const handleLogout = () => {
         Alert.alert(
             "Đăng xuất",
@@ -152,6 +270,31 @@ export default function ProfileScreen({
         );
     };
 
+    if (profileLoading) {
+        return (
+            <View
+                style={
+                    styles.loadingContainer
+                }
+            >
+                <ActivityIndicator
+                    size="large"
+                    color={
+                        colors.primary
+                    }
+                />
+
+                <Text
+                    style={
+                        styles.loadingText
+                    }
+                >
+                    Đang tải hồ sơ...
+                </Text>
+            </View>
+        );
+    }
+
     return (
         <View
             style={
@@ -164,6 +307,16 @@ export default function ProfileScreen({
                 Hồ sơ
             </Text>
 
+            {profileError !== "" && (
+                <Text
+                    style={
+                        styles.errorText
+                    }
+                >
+                    {profileError}
+                </Text>
+            )}
+
             <View
                 style={styles.avatar}
             >
@@ -173,8 +326,10 @@ export default function ProfileScreen({
                     }
                 >
                     {name
-                        .charAt(0)
-                        .toUpperCase()}
+                        ? name
+                              .charAt(0)
+                              .toUpperCase()
+                        : "U"}
                 </Text>
             </View>
 
@@ -203,6 +358,9 @@ export default function ProfileScreen({
                         placeholder="Nhập họ và tên"
                         placeholderTextColor={
                             colors.gray
+                        }
+                        editable={
+                            !saveLoading
                         }
                     />
                 ) : (
@@ -254,8 +412,7 @@ export default function ProfileScreen({
                         styles.note
                     }
                 >
-                    Email không thể
-                    chỉnh sửa
+                    Email không thể chỉnh sửa
                 </Text>
             </View>
 
@@ -267,17 +424,13 @@ export default function ProfileScreen({
                     onPress={
                         handleEdit
                     }
-                    disabled={
-                        logoutLoading
-                    }
                 >
                     <Text
                         style={
                             styles.editButtonText
                         }
                     >
-                        Chỉnh sửa thông
-                        tin
+                        Chỉnh sửa thông tin
                     </Text>
                 </TouchableOpacity>
             ) : (
@@ -292,6 +445,9 @@ export default function ProfileScreen({
                         }
                         onPress={
                             handleCancel
+                        }
+                        disabled={
+                            saveLoading
                         }
                     >
                         <Text
@@ -310,14 +466,25 @@ export default function ProfileScreen({
                         onPress={
                             handleSave
                         }
+                        disabled={
+                            saveLoading
+                        }
                     >
-                        <Text
-                            style={
-                                styles.saveButtonText
-                            }
-                        >
-                            Lưu
-                        </Text>
+                        {saveLoading ? (
+                            <ActivityIndicator
+                                color={
+                                    colors.white
+                                }
+                            />
+                        ) : (
+                            <Text
+                                style={
+                                    styles.saveButtonText
+                                }
+                            >
+                                Lưu
+                            </Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             )}
@@ -356,168 +523,181 @@ export default function ProfileScreen({
     );
 }
 
-const styles =
-    StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor:
-                colors.background,
-            padding: 20,
-        },
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor:
+            colors.background,
+        padding: 20,
+    },
 
-        title: {
-            fontSize: 28,
-            fontWeight: "700",
-            color: colors.text,
-            marginBottom: 30,
-        },
+    loadingContainer: {
+        flex: 1,
+        backgroundColor:
+            colors.background,
+        alignItems: "center",
+        justifyContent: "center",
+    },
 
-        avatar: {
-            width: 90,
-            height: 90,
-            borderRadius: 45,
-            backgroundColor:
-                colors.primary,
-            alignSelf: "center",
-            alignItems: "center",
-            justifyContent:
-                "center",
-            marginBottom: 30,
-        },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: colors.gray,
+    },
 
-        avatarText: {
-            fontSize: 36,
-            fontWeight: "700",
-            color: colors.white,
-        },
+    title: {
+        fontSize: 28,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 30,
+    },
 
-        section: {
-            marginBottom: 20,
-        },
+    errorText: {
+        fontSize: 14,
+        color: colors.error,
+        marginBottom: 15,
+    },
 
-        label: {
-            fontSize: 14,
-            fontWeight: "600",
-            color: colors.text,
-            marginBottom: 8,
-        },
+    avatar: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        backgroundColor:
+            colors.primary,
+        alignSelf: "center",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 30,
+    },
 
-        infoBox: {
-            minHeight: 50,
-            borderWidth: 1,
-            borderColor:
-                colors.border,
-            borderRadius: 10,
-            backgroundColor:
-                colors.white,
-            justifyContent:
-                "center",
-            paddingHorizontal: 15,
-        },
+    avatarText: {
+        fontSize: 36,
+        fontWeight: "700",
+        color: colors.white,
+    },
 
-        value: {
-            fontSize: 16,
-            color: colors.text,
-        },
+    section: {
+        marginBottom: 20,
+    },
 
-        input: {
-            height: 50,
-            borderWidth: 1,
-            borderColor:
-                colors.primary,
-            borderRadius: 10,
-            backgroundColor:
-                colors.white,
-            paddingHorizontal: 15,
-            fontSize: 16,
-            color: colors.text,
-        },
+    label: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 8,
+    },
 
-        note: {
-            fontSize: 12,
-            color: colors.gray,
-            marginTop: 6,
-        },
+    infoBox: {
+        minHeight: 50,
+        borderWidth: 1,
+        borderColor:
+            colors.border,
+        borderRadius: 10,
+        backgroundColor:
+            colors.white,
+        justifyContent: "center",
+        paddingHorizontal: 15,
+    },
 
-        editButton: {
-            height: 50,
-            backgroundColor:
-                colors.primary,
-            borderRadius: 10,
-            alignItems: "center",
-            justifyContent:
-                "center",
-            marginTop: 5,
-        },
+    value: {
+        fontSize: 16,
+        color: colors.text,
+    },
 
-        editButtonText: {
-            fontSize: 16,
-            fontWeight: "600",
-            color: colors.white,
-        },
+    input: {
+        height: 50,
+        borderWidth: 1,
+        borderColor:
+            colors.primary,
+        borderRadius: 10,
+        backgroundColor:
+            colors.white,
+        paddingHorizontal: 15,
+        fontSize: 16,
+        color: colors.text,
+    },
 
-        editActions: {
-            flexDirection: "row",
-            gap: 10,
-            marginTop: 5,
-        },
+    note: {
+        fontSize: 12,
+        color: colors.gray,
+        marginTop: 6,
+    },
 
-        cancelButton: {
-            flex: 1,
-            height: 50,
-            borderWidth: 1,
-            borderColor:
-                colors.border,
-            borderRadius: 10,
-            backgroundColor:
-                colors.white,
-            alignItems: "center",
-            justifyContent:
-                "center",
-        },
+    editButton: {
+        height: 50,
+        backgroundColor:
+            colors.primary,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 5,
+    },
 
-        cancelButtonText: {
-            fontSize: 16,
-            fontWeight: "600",
-            color: colors.text,
-        },
+    editButtonText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.white,
+    },
 
-        saveButton: {
-            flex: 1,
-            height: 50,
-            backgroundColor:
-                colors.primary,
-            borderRadius: 10,
-            alignItems: "center",
-            justifyContent:
-                "center",
-        },
+    editActions: {
+        flexDirection: "row",
+        gap: 10,
+        marginTop: 5,
+    },
 
-        saveButtonText: {
-            fontSize: 16,
-            fontWeight: "600",
-            color: colors.white,
-        },
+    cancelButton: {
+        flex: 1,
+        height: 50,
+        borderWidth: 1,
+        borderColor:
+            colors.border,
+        borderRadius: 10,
+        backgroundColor:
+            colors.white,
+        alignItems: "center",
+        justifyContent: "center",
+    },
 
-        logoutButton: {
-            height: 50,
-            borderWidth: 1,
-            borderColor:
-                colors.error,
-            borderRadius: 10,
-            alignItems: "center",
-            justifyContent:
-                "center",
-            marginTop: 20,
-        },
+    cancelButtonText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+    },
 
-        logoutButtonDisabled: {
-            opacity: 0.6,
-        },
+    saveButton: {
+        flex: 1,
+        height: 50,
+        backgroundColor:
+            colors.primary,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+    },
 
-        logoutText: {
-            fontSize: 16,
-            fontWeight: "600",
-            color: colors.error,
-        },
-    });
+    saveButtonText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.white,
+    },
+
+    logoutButton: {
+        height: 50,
+        borderWidth: 1,
+        borderColor:
+            colors.error,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 20,
+    },
+
+    logoutButtonDisabled: {
+        opacity: 0.6,
+    },
+
+    logoutText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.error,
+    },
+});
