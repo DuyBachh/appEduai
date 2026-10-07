@@ -1,110 +1,294 @@
+const chatService =
+    require(
+        "../services/chatService"
+    );
+
+// ========================================
+// VERIFY SERVICES
+// ========================================
+
+const requiredFunctions =
+    [
+        "chatWithDocument",
+
+        "getConversations",
+
+        "getConversationMessages",
+
+        "deleteConversation",
+    ];
+
+for (
+    const functionName of
+    requiredFunctions
+) {
+    if (
+        typeof chatService[
+            functionName
+        ] !==
+        "function"
+    ) {
+        throw new Error(
+            `chatService.${functionName} phải là function.`
+        );
+    }
+}
+
 const {
     chatWithDocument,
+
     getConversations,
+
     getConversationMessages,
+
     deleteConversation,
-} = require("../services/chatService");
+} = chatService;
 
-const sendMessage = async (
-    req,
-    res,
-    next
+// ========================================
+// USER ID
+// ========================================
+
+const getUserIdFromRequest = (
+    req
 ) => {
-    try {
-        const {
-            documentId,
-            conversationId,
-            question,
-        } = req.body;
+    const value =
+        req.user?.userId ||
+        req.user?.id ||
+        req.user?._id ||
+        req.auth?.userId ||
+        req.auth?.id ||
+        req.auth?._id;
 
-        const result =
-            await chatWithDocument({
-                userId: req.user.userId,
-                documentId,
-                conversationId,
-                question,
-            });
-
-        res.status(200).json({
-            success: true,
-            message:
-                "Chat với tài liệu thành công.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
+    return value
+        ? String(value)
+        : null;
 };
 
-const getChatHistory = async (
-    req,
-    res,
-    next
+const requireUserId = (
+    req
 ) => {
-    try {
-        const conversations =
-            await getConversations(
-                req.user.userId
+    const userId =
+        getUserIdFromRequest(
+            req
+        );
+
+    if (!userId) {
+        const error =
+            new Error(
+                "Không xác định được người dùng đăng nhập."
             );
 
-        res.status(200).json({
-            success: true,
-            message:
-                "Lấy lịch sử trò chuyện thành công.",
-            data: conversations,
-        });
-    } catch (error) {
-        next(error);
+        error.statusCode =
+            401;
+
+        throw error;
     }
+
+    return userId;
 };
 
-const getMessages = async (
-    req,
-    res,
-    next
-) => {
-    try {
-        const result =
-            await getConversationMessages({
-                userId: req.user.userId,
-                conversationId:
-                    req.params.conversationId,
-            });
+// ========================================
+// SEND MESSAGE
+// ========================================
 
-        res.status(200).json({
-            success: true,
-            message:
-                "Lấy nội dung cuộc trò chuyện thành công.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+const sendMessage =
+    async (
+        req,
+        res,
+        next
+    ) => {
+        try {
+            const userId =
+                requireUserId(
+                    req
+                );
 
-const removeConversation = async (
-    req,
-    res,
-    next
-) => {
-    try {
-        const result =
-            await deleteConversation({
-                userId: req.user.userId,
-                conversationId:
-                    req.params.conversationId,
-            });
+            const {
+                documentId,
 
-        res.status(200).json({
-            success: true,
-            message:
-                "Xóa cuộc trò chuyện thành công.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+                conversationId =
+                    null,
+
+                question,
+            } =
+                req.body || {};
+
+            const result =
+                await chatWithDocument(
+                    {
+                        userId,
+
+                        documentId,
+
+                        conversationId,
+
+                        question,
+                    }
+                );
+
+            return res
+                .status(200)
+                .json({
+                    success:
+                        true,
+
+                    message:
+                        "Chat với tài liệu thành công.",
+
+                    data:
+                        result,
+                });
+        } catch (error) {
+            return next(
+                error
+            );
+        }
+    };
+
+// ========================================
+// HISTORY
+// ========================================
+
+const getChatHistory =
+    async (
+        req,
+        res,
+        next
+    ) => {
+        try {
+            const userId =
+                requireUserId(
+                    req
+                );
+
+            const documentId =
+                req.query
+                    ?.documentId ||
+                null;
+
+            const conversations =
+                await getConversations(
+                    {
+                        userId,
+
+                        documentId,
+                    }
+                );
+
+            return res
+                .status(200)
+                .json({
+                    success:
+                        true,
+
+                    message:
+                        "Lấy lịch sử trò chuyện thành công.",
+
+                    data:
+                        conversations,
+                });
+        } catch (error) {
+            return next(
+                error
+            );
+        }
+    };
+
+// ========================================
+// GET MESSAGES
+// ========================================
+
+const getMessages =
+    async (
+        req,
+        res,
+        next
+    ) => {
+        try {
+            const userId =
+                requireUserId(
+                    req
+                );
+
+            const result =
+                await getConversationMessages(
+                    {
+                        userId,
+
+                        conversationId:
+                            req.params
+                                .conversationId,
+                    }
+                );
+
+            return res
+                .status(200)
+                .json({
+                    success:
+                        true,
+
+                    message:
+                        "Lấy nội dung cuộc trò chuyện thành công.",
+
+                    data:
+                        result,
+                });
+        } catch (error) {
+            return next(
+                error
+            );
+        }
+    };
+
+// ========================================
+// DELETE
+// ========================================
+
+const removeConversation =
+    async (
+        req,
+        res,
+        next
+    ) => {
+        try {
+            const userId =
+                requireUserId(
+                    req
+                );
+
+            const result =
+                await deleteConversation(
+                    {
+                        userId,
+
+                        conversationId:
+                            req.params
+                                .conversationId,
+                    }
+                );
+
+            return res
+                .status(200)
+                .json({
+                    success:
+                        true,
+
+                    message:
+                        "Xóa cuộc trò chuyện thành công.",
+
+                    data:
+                        result,
+                });
+        } catch (error) {
+            return next(
+                error
+            );
+        }
+    };
+
+// ========================================
+// EXPORT
+// ========================================
 
 module.exports = {
     sendMessage,

@@ -1,4 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, {
+    useEffect,
+    useRef,
+    useState,
+} from "react";
+
 import {
     View,
     Text,
@@ -8,350 +13,525 @@ import {
     FlatList,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import colors from "../../styles/colors";
 
-const CHAT_HISTORY_KEY = "chat_history";
+import {
+    apiRequest,
+} from "../../services/api";
+
+// ========================================
+// DOCUMENT HELPERS
+// ========================================
+
+const getDocumentId = (
+    document
+) => {
+    return (
+        document?._id ||
+        document?.id ||
+        null
+    );
+};
+
+const getDocumentName = (
+    document
+) => {
+    return (
+        document?.name ||
+        document?.originalName ||
+        document?.fileName ||
+        "Tài liệu không tên"
+    );
+};
+
+// ========================================
+// CHAT SCREEN
+// ========================================
 
 export default function ChatScreen({
     navigation,
     route,
 }) {
-    const document = route.params?.document;
+    const document =
+        route.params
+            ?.document;
 
-    const conversationId =
-        route.params?.conversationId || null;
+    const routeConversationId =
+        route.params
+            ?.conversationId ||
+        null;
 
-    const initialMessages =
-        route.params?.messages || [];
-
-    const [message, setMessage] = useState("");
-    const [messages, setMessages] =
-        useState(initialMessages);
-
-    const [loading, setLoading] =
-        useState(false);
-
-    const [error, setError] =
-        useState("");
-
-    /*
-     * Load conversation được truyền từ ChatHistoryScreen
-     */
-    useEffect(() => {
-        if (conversationId && initialMessages.length > 0) {
-            setMessages(initialMessages);
-        } else {
-            setMessages([]);
-        }
-
-        setMessage("");
-        setError("");
-        setLoading(false);
-    }, [conversationId]);
-
-    /*
-     * Tạo câu trả lời mock.
-     *
-     * Đây vẫn là Frontend mock.
-     * Sau này phần này sẽ được thay bằng Chat API.
-     */
-    const generateMockAnswer = (
-        question,
-        conversation
-    ) => {
-        const previousUserMessages =
-            conversation.filter(
-                (item) =>
-                    item.role === "user"
-            );
-
-        const lowerQuestion =
-            question.toLowerCase();
-
-        if (
-            lowerQuestion.includes("ví dụ") &&
-            previousUserMessages.length > 0
-        ) {
-            const previousQuestion =
-                previousUserMessages[
-                    previousUserMessages.length - 1
-                ].content;
-
-            return (
-                `Dựa trên câu hỏi trước của bạn "${previousQuestion}", ` +
-                `đây là một ví dụ minh họa.\n\n` +
-                "Trong phiên bản hiện tại, đây là câu trả lời mô phỏng. " +
-                "Khi kết nối AI thật, hệ thống sẽ sử dụng nội dung tài liệu " +
-                "để tạo câu trả lời phù hợp."
-            );
-        }
-
-        if (
-            lowerQuestion.includes("giải thích") &&
-            previousUserMessages.length > 0
-        ) {
-            return (
-                "Dựa trên nội dung cuộc trò chuyện trước đó, " +
-                "AI sẽ tiếp tục giải thích vấn đề mà bạn đang hỏi.\n\n" +
-                "Hiện tại đây là câu trả lời mô phỏng. " +
-                "Backend AI sẽ xử lý nội dung tài liệu sau."
-            );
-        }
-
-        return (
-            `Bạn đang hỏi: "${question}"\n\n` +
-            `Tài liệu hiện tại: ${
-                document?.name ||
-                "Tài liệu không tên"
-            }\n\n` +
-            "Đây là câu trả lời mô phỏng của AI. " +
-            "Sau khi kết nối Backend, AI sẽ phân tích nội dung " +
-            "tài liệu và trả lời câu hỏi dựa trên ngữ cảnh cuộc trò chuyện."
+    const documentId =
+        getDocumentId(
+            document
         );
-    };
 
-    /*
-     * Lưu conversation vào AsyncStorage
-     */
-    const saveConversation = async (
-        conversationMessages,
-        currentConversationId = null
-    ) => {
-        try {
-            if (!conversationMessages?.length) {
+    const listRef =
+        useRef(null);
+
+    const [
+        activeConversationId,
+        setActiveConversationId,
+    ] = useState(
+        routeConversationId
+    );
+
+    const [
+        message,
+        setMessage,
+    ] = useState("");
+
+    const [
+        messages,
+        setMessages,
+    ] = useState([]);
+
+    const [
+        loadingMessages,
+        setLoadingMessages,
+    ] = useState(
+        Boolean(
+            routeConversationId
+        )
+    );
+
+    const [
+        sending,
+        setSending,
+    ] = useState(false);
+
+    const [
+        error,
+        setError,
+    ] = useState("");
+
+    // ========================================
+    // SCROLL END
+    // ========================================
+
+    const scrollToBottom =
+        () => {
+            setTimeout(
+                () => {
+                    listRef.current?.scrollToEnd(
+                        {
+                            animated:
+                                true,
+                        }
+                    );
+                },
+                100
+            );
+        };
+
+    // ========================================
+    // LOAD EXISTING CONVERSATION
+    // ========================================
+
+    useEffect(() => {
+        let mounted =
+            true;
+
+        const loadConversation =
+            async () => {
+                setMessage(
+                    ""
+                );
+
+                setError(
+                    ""
+                );
+
+                setActiveConversationId(
+                    routeConversationId
+                );
+
+                if (
+                    !routeConversationId
+                ) {
+                    setMessages(
+                        []
+                    );
+
+                    setLoadingMessages(
+                        false
+                    );
+
+                    return;
+                }
+
+                try {
+                    setLoadingMessages(
+                        true
+                    );
+
+                    const result =
+                        await apiRequest(
+                            `/chat/conversations/${routeConversationId}/messages`
+                        );
+
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    const loadedMessages =
+                        Array.isArray(
+                            result?.data
+                                ?.messages
+                        )
+                            ? result.data
+                                  .messages
+                            : [];
+
+                    setMessages(
+                        loadedMessages
+                    );
+                } catch (
+                    requestError
+                ) {
+                    if (
+                        !mounted
+                    ) {
+                        return;
+                    }
+
+                    console.log(
+                        "CHAT LOAD ERROR:",
+                        requestError.message
+                    );
+
+                    setMessages(
+                        []
+                    );
+
+                    setError(
+                        requestError.message ||
+                            "Không thể tải cuộc trò chuyện."
+                    );
+                } finally {
+                    if (
+                        mounted
+                    ) {
+                        setLoadingMessages(
+                            false
+                        );
+                    }
+                }
+            };
+
+        loadConversation();
+
+        return () => {
+            mounted =
+                false;
+        };
+    }, [
+        routeConversationId,
+    ]);
+
+    // ========================================
+    // AUTO SCROLL
+    // ========================================
+
+    useEffect(() => {
+        if (
+            messages.length >
+                0 ||
+            sending
+        ) {
+            scrollToBottom();
+        }
+    }, [
+        messages,
+        sending,
+    ]);
+
+    // ========================================
+    // SEND MESSAGE
+    // ========================================
+
+    const handleSendMessage =
+        async () => {
+            const trimmedMessage =
+                message.trim();
+
+            if (
+                !trimmedMessage ||
+                sending
+            ) {
                 return;
             }
 
-            const storedData =
-                await AsyncStorage.getItem(
-                    CHAT_HISTORY_KEY
+            if (
+                !documentId
+            ) {
+                setError(
+                    "Không tìm thấy Document ID."
                 );
 
-            const conversations =
-                storedData
-                    ? JSON.parse(storedData)
-                    : [];
-
-            const userMessages =
-                conversationMessages.filter(
-                    (item) =>
-                        item.role === "user"
-                );
-
-            const firstQuestion =
-                userMessages[0]?.content ||
-                "Cuộc trò chuyện mới";
-
-            const id =
-                currentConversationId ||
-                Date.now().toString();
-
-            const existingIndex =
-                conversations.findIndex(
-                    (item) =>
-                        item.id === id
-                );
-
-            const existingConversation =
-                existingIndex !== -1
-                    ? conversations[
-                          existingIndex
-                      ]
-                    : null;
-
-            const conversation = {
-                id,
-                documentId:
-                    document?.id || null,
-
-                documentName:
-                    document?.name ||
-                    "Tài liệu không tên",
-
-                title:
-                    existingConversation?.title ||
-                    firstQuestion,
-
-                messages:
-                    conversationMessages,
-
-                createdAt:
-                    existingConversation?.createdAt ||
-                    new Date().toISOString(),
-
-                updatedAt:
-                    new Date().toISOString(),
-            };
-
-            if (existingIndex !== -1) {
-                conversations[
-                    existingIndex
-                ] = conversation;
-            } else {
-                conversations.unshift(
-                    conversation
-                );
+                return;
             }
 
-            await AsyncStorage.setItem(
-                CHAT_HISTORY_KEY,
-                JSON.stringify(
-                    conversations
-                )
+            const tempId =
+                `temp-${Date.now()}`;
+
+            const tempUserMessage =
+                {
+                    _id:
+                        tempId,
+
+                    role:
+                        "user",
+
+                    content:
+                        trimmedMessage,
+
+                    createdAt:
+                        new Date().toISOString(),
+
+                    pending:
+                        true,
+                };
+
+            setMessages(
+                (
+                    previous
+                ) => [
+                    ...previous,
+
+                    tempUserMessage,
+                ]
             );
 
-            return id;
-        } catch (err) {
-            console.log(
-                "Save chat history error:",
-                err
-            );
-        }
-    };
-
-    /*
-     * Gửi câu hỏi
-     */
-    const handleSendMessage = async () => {
-        const trimmedMessage =
-            message.trim();
-
-        if (!trimmedMessage || loading) {
-            return;
-        }
-
-        setError("");
-
-        const userMessage = {
-            id:
-                Date.now().toString(),
-            role: "user",
-            content: trimmedMessage,
-            createdAt:
-                new Date().toISOString(),
-        };
-
-        const conversationAfterUser = [
-            ...messages,
-            userMessage,
-        ];
-
-        setMessages(
-            conversationAfterUser
-        );
-
-        setMessage("");
-        setLoading(true);
-
-        /*
-         * Lưu ngay câu hỏi của user.
-         * Nếu app đóng sau đó vẫn có conversation.
-         */
-        let currentConversationId =
-            conversationId;
-
-        currentConversationId =
-            await saveConversation(
-                conversationAfterUser,
-                currentConversationId
-            );
-
-        try {
-            /*
-             * Mock AI delay
-             */
-            await new Promise(
-                (resolve) =>
-                    setTimeout(
-                        resolve,
-                        1200
-                    )
-            );
-
-            const answer =
-                generateMockAnswer(
-                    trimmedMessage,
-                    conversationAfterUser
-                );
-
-            const aiMessage = {
-                id:
-                    `${Date.now()}-ai`,
-                role: "ai",
-                content: answer,
-                createdAt:
-                    new Date().toISOString(),
-            };
-
-            const finalMessages = [
-                ...conversationAfterUser,
-                aiMessage,
-            ];
-
-            setMessages(finalMessages);
-
-            /*
-             * Lưu lại conversation sau khi AI trả lời.
-             */
-            await saveConversation(
-                finalMessages,
-                currentConversationId
-            );
-        } catch (err) {
-            console.log(
-                "Send message error:",
-                err
+            setMessage(
+                ""
             );
 
             setError(
-                "Không thể nhận câu trả lời. Vui lòng thử lại."
+                ""
             );
-        } finally {
-            setLoading(false);
-        }
-    };
 
-    /*
-     * Tạo cuộc trò chuyện mới
-     */
-    const handleNewChat = () => {
-        if (loading) {
-            return;
-        }
+            setSending(
+                true
+            );
 
-        navigation.replace("Chat", {
-            document: document,
-        });
-    };
+            try {
+                const result =
+                    await apiRequest(
+                        "/chat",
+                        {
+                            method:
+                                "POST",
 
-    /*
-     * Mở Chat History
-     */
-    const handleHistory = () => {
-        navigation.navigate(
-            "ChatHistory",
-            {
-                document: document,
+                            body:
+                                JSON.stringify(
+                                    {
+                                        documentId,
+
+                                        conversationId:
+                                            activeConversationId,
+
+                                        question:
+                                            trimmedMessage,
+                                    }
+                                ),
+                        }
+                    );
+
+                const data =
+                    result?.data;
+
+                if (
+                    !data
+                ) {
+                    throw new Error(
+                        "Backend không trả về dữ liệu chat."
+                    );
+                }
+
+                const newConversationId =
+                    data.conversationId
+                        ? String(
+                              data.conversationId
+                          )
+                        : activeConversationId;
+
+                if (
+                    newConversationId
+                ) {
+                    setActiveConversationId(
+                        newConversationId
+                    );
+                }
+
+                const userMessage =
+                    data.userMessage || {
+                        _id:
+                            `${tempId}-user`,
+
+                        role:
+                            "user",
+
+                        content:
+                            trimmedMessage,
+
+                        createdAt:
+                            new Date().toISOString(),
+                    };
+
+                const assistantMessage =
+                    data.assistantMessage ||
+                    {
+                        _id:
+                            `${tempId}-assistant`,
+
+                        role:
+                            "assistant",
+
+                        content:
+                            data.answer ||
+                            "AI không trả về nội dung.",
+
+                        createdAt:
+                            new Date().toISOString(),
+                    };
+
+                setMessages(
+                    (
+                        previous
+                    ) => {
+                        const withoutTemp =
+                            previous.filter(
+                                (
+                                    item
+                                ) =>
+                                    item._id !==
+                                    tempId
+                            );
+
+                        return [
+                            ...withoutTemp,
+
+                            userMessage,
+
+                            assistantMessage,
+                        ];
+                    }
+                );
+
+                console.log(
+                    "CHAT SUCCESS:",
+                    newConversationId
+                );
+            } catch (
+                requestError
+            ) {
+                console.log(
+                    "CHAT ERROR:",
+                    requestError.message
+                );
+
+                // Xóa message local
+                // vì backend chưa lưu.
+                setMessages(
+                    (
+                        previous
+                    ) =>
+                        previous.filter(
+                            (
+                                item
+                            ) =>
+                                item._id !==
+                                tempId
+                        )
+                );
+
+                // Trả câu hỏi lại input
+                // để người dùng bấm gửi lại.
+                setMessage(
+                    trimmedMessage
+                );
+
+                setError(
+                    requestError.message ||
+                        "Không thể nhận câu trả lời từ AI."
+                );
+            } finally {
+                setSending(
+                    false
+                );
             }
-        );
-    };
+        };
 
-    /*
-     * Render từng message
-     */
+    // ========================================
+    // NEW CHAT
+    // ========================================
+
+    const handleNewChat =
+        () => {
+            if (
+                sending
+            ) {
+                return;
+            }
+
+            setActiveConversationId(
+                null
+            );
+
+            setMessages(
+                []
+            );
+
+            setMessage(
+                ""
+            );
+
+            setError(
+                ""
+            );
+
+            navigation.setParams({
+                conversationId:
+                    undefined,
+            });
+        };
+
+    // ========================================
+    // HISTORY
+    // ========================================
+
+    const handleHistory =
+        () => {
+            navigation.navigate(
+                "ChatHistory",
+                {
+                    document,
+                }
+            );
+        };
+
+    // ========================================
+    // RENDER MESSAGE
+    // ========================================
+
     const renderMessage = ({
         item,
     }) => {
         const isUser =
-            item.role === "user";
+            item.role ===
+            "user";
 
         return (
             <View
                 style={[
                     styles.messageRow,
+
                     isUser
                         ? styles.userRow
                         : styles.aiRow,
@@ -360,12 +540,13 @@ export default function ChatScreen({
                 <View
                     style={[
                         styles.messageBubble,
+
                         isUser
                             ? styles.userBubble
                             : styles.aiBubble,
                     ]}
                 >
-                    {!isUser && (
+                    {!isUser ? (
                         <Text
                             style={
                                 styles.aiLabel
@@ -373,11 +554,15 @@ export default function ChatScreen({
                         >
                             AI
                         </Text>
-                    )}
+                    ) : null}
 
                     <Text
+                        selectable={
+                            !isUser
+                        }
                         style={[
                             styles.messageText,
+
                             isUser
                                 ? styles.userText
                                 : styles.aiText,
@@ -385,22 +570,44 @@ export default function ChatScreen({
                     >
                         {item.content}
                     </Text>
+
+                    {item.pending ? (
+                        <Text
+                            style={
+                                styles.pendingText
+                            }
+                        >
+                            Đang gửi...
+                        </Text>
+                    ) : null}
                 </View>
             </View>
         );
     };
 
+    // ========================================
+    // UI
+    // ========================================
+
     return (
         <KeyboardAvoidingView
-            style={styles.container}
+            style={
+                styles.container
+            }
             behavior={
-                Platform.OS === "ios"
+                Platform.OS ===
+                "ios"
                     ? "padding"
                     : undefined
             }
         >
-            {/* Header */}
-            <View style={styles.header}>
+            {/* HEADER */}
+
+            <View
+                style={
+                    styles.header
+                }
+            >
                 <TouchableOpacity
                     style={
                         styles.headerButton
@@ -435,10 +642,13 @@ export default function ChatScreen({
                         style={
                             styles.documentName
                         }
-                        numberOfLines={1}
+                        numberOfLines={
+                            1
+                        }
                     >
-                        {document?.name ||
-                            "Tài liệu không tên"}
+                        {getDocumentName(
+                            document
+                        )}
                     </Text>
                 </View>
 
@@ -471,6 +681,9 @@ export default function ChatScreen({
                         onPress={
                             handleNewChat
                         }
+                        disabled={
+                            sending
+                        }
                     >
                         <Text
                             style={
@@ -483,126 +696,194 @@ export default function ChatScreen({
                 </View>
             </View>
 
-            {/* Messages */}
-            <FlatList
-                data={messages}
-                keyExtractor={(item) =>
-                    item.id
-                }
-                renderItem={
-                    renderMessage
-                }
-                contentContainerStyle={
-                    messages.length === 0
-                        ? styles.emptyList
-                        : styles.messageList
-                }
-                showsVerticalScrollIndicator={
-                    false
-                }
-                keyboardShouldPersistTaps="handled"
-                ListEmptyComponent={
-                    <View
+            {/* LOADING HISTORY */}
+
+            {loadingMessages ? (
+                <View
+                    style={
+                        styles.centerContainer
+                    }
+                >
+                    <ActivityIndicator
+                        size="large"
+                        color={
+                            colors.primary
+                        }
+                    />
+
+                    <Text
                         style={
-                            styles.emptyContainer
+                            styles.loadingText
                         }
                     >
-                        <Text
+                        Đang tải cuộc trò chuyện...
+                    </Text>
+                </View>
+            ) : (
+                <FlatList
+                    ref={
+                        listRef
+                    }
+                    data={
+                        messages
+                    }
+                    keyExtractor={(
+                        item,
+                        index
+                    ) =>
+                        String(
+                            item._id ||
+                                item.id ||
+                                index
+                        )
+                    }
+                    renderItem={
+                        renderMessage
+                    }
+                    contentContainerStyle={
+                        messages.length ===
+                        0
+                            ? styles.emptyList
+                            : styles.messageList
+                    }
+                    showsVerticalScrollIndicator={
+                        false
+                    }
+                    keyboardShouldPersistTaps="handled"
+                    ListEmptyComponent={
+                        <View
                             style={
-                                styles.emptyIcon
+                                styles.emptyContainer
                             }
                         >
-                            🤖
-                        </Text>
-
-                        <Text
-                            style={
-                                styles.emptyTitle
-                            }
-                        >
-                            Hỏi AI về tài liệu
-                        </Text>
-
-                        <Text
-                            style={
-                                styles.emptyDescription
-                            }
-                        >
-                            Đặt câu hỏi về nội dung
-                            tài liệu và AI sẽ hỗ trợ
-                            bạn.
-                        </Text>
-                    </View>
-                }
-                ListFooterComponent={
-                    <>
-                        {loading && (
-                            <View
+                            <Text
                                 style={
-                                    styles.aiRow
+                                    styles.emptyIcon
                                 }
                             >
+                                🤖
+                            </Text>
+
+                            <Text
+                                style={
+                                    styles.emptyTitle
+                                }
+                            >
+                                Hỏi AI về tài liệu
+                            </Text>
+
+                            <Text
+                                style={
+                                    styles.emptyDescription
+                                }
+                            >
+                                Đặt câu hỏi về nội dung tài liệu. AI sẽ ghi nhớ ngữ cảnh của cuộc trò chuyện để xử lý các câu hỏi tiếp theo.
+                            </Text>
+                        </View>
+                    }
+                    ListFooterComponent={
+                        <>
+                            {sending ? (
                                 <View
                                     style={
-                                        styles.loadingBubble
+                                        styles.aiRow
+                                    }
+                                >
+                                    <View
+                                        style={
+                                            styles.loadingBubble
+                                        }
+                                    >
+                                        <ActivityIndicator
+                                            size="small"
+                                            color={
+                                                colors.primary
+                                            }
+                                        />
+
+                                        <Text
+                                            style={
+                                                styles.aiThinkingText
+                                            }
+                                        >
+                                            AI đang suy nghĩ...
+                                        </Text>
+                                    </View>
+                                </View>
+                            ) : null}
+
+                            {error ? (
+                                <View
+                                    style={
+                                        styles.errorContainer
                                     }
                                 >
                                     <Text
                                         style={
-                                            styles.loadingText
+                                            styles.errorText
                                         }
                                     >
-                                        AI đang suy nghĩ...
+                                        {
+                                            error
+                                        }
                                     </Text>
                                 </View>
-                            </View>
-                        )}
+                            ) : null}
+                        </>
+                    }
+                />
+            )}
 
-                        {error ? (
-                            <View
-                                style={
-                                    styles.errorContainer
-                                }
-                            >
-                                <Text
-                                    style={
-                                        styles.errorText
-                                    }
-                                >
-                                    {error}
-                                </Text>
-                            </View>
-                        ) : null}
-                    </>
-                }
-            />
+            {/* INPUT */}
 
-            {/* Input */}
             <View
                 style={
                     styles.inputContainer
                 }
             >
                 <TextInput
-                    style={styles.input}
-                    value={message}
-                    onChangeText={
-                        setMessage
+                    style={
+                        styles.input
                     }
+                    value={
+                        message
+                    }
+                    onChangeText={(
+                        value
+                    ) => {
+                        setMessage(
+                            value
+                        );
+
+                        if (
+                            error
+                        ) {
+                            setError(
+                                ""
+                            );
+                        }
+                    }}
                     placeholder="Đặt câu hỏi cho AI..."
                     placeholderTextColor={
                         colors.gray
                     }
                     multiline
-                    maxLength={2000}
-                    editable={!loading}
+                    maxLength={
+                        3000
+                    }
+                    editable={
+                        !sending &&
+                        !loadingMessages
+                    }
                 />
 
                 <TouchableOpacity
                     style={[
                         styles.sendButton,
+
                         (!message.trim() ||
-                            loading) &&
+                            sending ||
+                            loadingMessages) &&
                             styles.sendButtonDisabled,
                     ]}
                     onPress={
@@ -610,277 +891,506 @@ export default function ChatScreen({
                     }
                     disabled={
                         !message.trim() ||
-                        loading
+                        sending ||
+                        loadingMessages
                     }
-                    activeOpacity={0.8}
+                    activeOpacity={
+                        0.8
+                    }
                 >
-                    <Text
-                        style={
-                            styles.sendButtonText
-                        }
-                    >
-                        ➤
-                    </Text>
+                    {sending ? (
+                        <ActivityIndicator
+                            size="small"
+                            color={
+                                colors.white
+                            }
+                        />
+                    ) : (
+                        <Text
+                            style={
+                                styles.sendButtonText
+                            }
+                        >
+                            ➤
+                        </Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor:
-            colors.background,
-    },
+// ========================================
+// STYLES
+// ========================================
 
-    header: {
-        height: 100,
-        paddingTop: 45,
-        paddingHorizontal: 12,
-        backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor:
-            colors.border,
-        flexDirection: "row",
-        alignItems: "center",
-    },
+const styles =
+    StyleSheet.create({
+        container: {
+            flex: 1,
 
-    headerButton: {
-        width: 40,
-        height: 40,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+            backgroundColor:
+                colors.background,
+        },
 
-    backText: {
-        fontSize: 36,
-        lineHeight: 40,
-        color: colors.text,
-    },
+        header: {
+            height: 100,
 
-    headerCenter: {
-        flex: 1,
-        paddingHorizontal: 8,
-    },
+            paddingTop: 45,
 
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: colors.text,
-    },
+            paddingHorizontal:
+                12,
 
-    documentName: {
-        marginTop: 2,
-        fontSize: 12,
-        color: colors.gray,
-    },
+            backgroundColor:
+                colors.white,
 
-    headerActions: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
+            borderBottomWidth:
+                1,
 
-    historyButton: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 4,
-    },
+            borderBottomColor:
+                colors.border,
 
-    historyText: {
-        fontSize: 22,
-        color: colors.text,
-    },
+            flexDirection:
+                "row",
 
-    newChatButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor:
-            colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+            alignItems:
+                "center",
+        },
 
-    newChatText: {
-        fontSize: 26,
-        lineHeight: 28,
-        color: colors.white,
-        fontWeight: "400",
-    },
+        headerButton: {
+            width: 40,
 
-    messageList: {
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 16,
-    },
+            height: 40,
 
-    emptyList: {
-        flexGrow: 1,
-        padding: 24,
-        justifyContent: "center",
-    },
+            alignItems:
+                "center",
 
-    messageRow: {
-        width: "100%",
-        marginBottom: 12,
-    },
+            justifyContent:
+                "center",
+        },
 
-    userRow: {
-        alignItems: "flex-end",
-    },
+        backText: {
+            fontSize: 36,
 
-    aiRow: {
-        alignItems: "flex-start",
-    },
+            lineHeight: 40,
 
-    messageBubble: {
-        maxWidth: "82%",
-        borderRadius: 16,
-        paddingHorizontal: 15,
-        paddingVertical: 11,
-    },
+            color:
+                colors.text,
+        },
 
-    userBubble: {
-        backgroundColor:
-            colors.primary,
-        borderBottomRightRadius: 4,
-    },
+        headerCenter: {
+            flex: 1,
 
-    aiBubble: {
-        backgroundColor:
-            colors.white,
-        borderWidth: 1,
-        borderColor:
-            colors.border,
-        borderBottomLeftRadius: 4,
-    },
+            paddingHorizontal:
+                8,
+        },
 
-    aiLabel: {
-        fontSize: 12,
-        fontWeight: "700",
-        color: colors.primary,
-        marginBottom: 4,
-    },
+        headerTitle: {
+            fontSize: 18,
 
-    messageText: {
-        fontSize: 15,
-        lineHeight: 22,
-    },
+            fontWeight:
+                "700",
 
-    userText: {
-        color: colors.white,
-    },
+            color:
+                colors.text,
+        },
 
-    aiText: {
-        color: colors.text,
-    },
+        documentName: {
+            marginTop: 2,
 
-    loadingBubble: {
-        backgroundColor:
-            colors.white,
-        borderWidth: 1,
-        borderColor:
-            colors.border,
-        borderRadius: 16,
-        borderBottomLeftRadius: 4,
-        paddingHorizontal: 15,
-        paddingVertical: 11,
-    },
+            fontSize: 12,
 
-    loadingText: {
-        fontSize: 14,
-        color: colors.gray,
-    },
+            color:
+                colors.gray,
+        },
 
-    errorContainer: {
-        marginTop: 4,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        backgroundColor: "#FEF2F2",
-        borderRadius: 10,
-    },
+        headerActions: {
+            flexDirection:
+                "row",
 
-    errorText: {
-        fontSize: 13,
-        lineHeight: 18,
-        color: colors.error,
-    },
+            alignItems:
+                "center",
+        },
 
-    emptyContainer: {
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: 30,
-    },
+        historyButton: {
+            width: 38,
 
-    emptyIcon: {
-        fontSize: 48,
-        marginBottom: 16,
-    },
+            height: 38,
 
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 8,
-        textAlign: "center",
-    },
+            borderRadius:
+                19,
 
-    emptyDescription: {
-        fontSize: 14,
-        lineHeight: 21,
-        color: colors.gray,
-        textAlign: "center",
-    },
+            alignItems:
+                "center",
 
-    inputContainer: {
-        flexDirection: "row",
-        alignItems: "flex-end",
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        backgroundColor:
-            colors.white,
-        borderTopWidth: 1,
-        borderTopColor:
-            colors.border,
-    },
+            justifyContent:
+                "center",
 
-    input: {
-        flex: 1,
-        minHeight: 46,
-        maxHeight: 110,
-        backgroundColor:
-            colors.background,
-        borderWidth: 1,
-        borderColor:
-            colors.border,
-        borderRadius: 23,
-        paddingHorizontal: 16,
-        paddingVertical: 11,
-        fontSize: 15,
-        color: colors.text,
-        marginRight: 8,
-    },
+            marginRight:
+                4,
+        },
 
-    sendButton: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        backgroundColor:
-            colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+        historyText: {
+            fontSize: 22,
 
-    sendButtonDisabled: {
-        opacity: 0.45,
-    },
+            color:
+                colors.text,
+        },
 
-    sendButtonText: {
-        fontSize: 21,
-        color: colors.white,
-    },
-});
+        newChatButton: {
+            width: 40,
+
+            height: 40,
+
+            borderRadius:
+                20,
+
+            backgroundColor:
+                colors.primary,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        newChatText: {
+            fontSize: 26,
+
+            lineHeight: 28,
+
+            color:
+                colors.white,
+        },
+
+        messageList: {
+            paddingHorizontal:
+                16,
+
+            paddingTop: 16,
+
+            paddingBottom:
+                20,
+        },
+
+        emptyList: {
+            flexGrow: 1,
+
+            padding: 24,
+
+            justifyContent:
+                "center",
+        },
+
+        messageRow: {
+            width:
+                "100%",
+
+            marginBottom:
+                12,
+        },
+
+        userRow: {
+            alignItems:
+                "flex-end",
+        },
+
+        aiRow: {
+            alignItems:
+                "flex-start",
+        },
+
+        messageBubble: {
+            maxWidth:
+                "84%",
+
+            borderRadius:
+                16,
+
+            paddingHorizontal:
+                15,
+
+            paddingVertical:
+                11,
+        },
+
+        userBubble: {
+            backgroundColor:
+                colors.primary,
+
+            borderBottomRightRadius:
+                4,
+        },
+
+        aiBubble: {
+            backgroundColor:
+                colors.white,
+
+            borderWidth:
+                1,
+
+            borderColor:
+                colors.border,
+
+            borderBottomLeftRadius:
+                4,
+        },
+
+        aiLabel: {
+            fontSize: 12,
+
+            fontWeight:
+                "700",
+
+            color:
+                colors.primary,
+
+            marginBottom:
+                4,
+        },
+
+        messageText: {
+            fontSize: 15,
+
+            lineHeight: 22,
+        },
+
+        userText: {
+            color:
+                colors.white,
+        },
+
+        aiText: {
+            color:
+                colors.text,
+        },
+
+        pendingText: {
+            marginTop: 5,
+
+            fontSize: 10,
+
+            textAlign:
+                "right",
+
+            color:
+                "#E0E7FF",
+        },
+
+        loadingBubble: {
+            flexDirection:
+                "row",
+
+            alignItems:
+                "center",
+
+            backgroundColor:
+                colors.white,
+
+            borderWidth:
+                1,
+
+            borderColor:
+                colors.border,
+
+            borderRadius:
+                16,
+
+            borderBottomLeftRadius:
+                4,
+
+            paddingHorizontal:
+                15,
+
+            paddingVertical:
+                12,
+        },
+
+        aiThinkingText: {
+            marginLeft: 8,
+
+            fontSize: 14,
+
+            color:
+                colors.gray,
+        },
+
+        errorContainer: {
+            marginTop: 4,
+
+            marginBottom:
+                12,
+
+            paddingHorizontal:
+                14,
+
+            paddingVertical:
+                10,
+
+            backgroundColor:
+                "#FEF2F2",
+
+            borderRadius:
+                10,
+        },
+
+        errorText: {
+            fontSize: 13,
+
+            lineHeight: 18,
+
+            color:
+                colors.error,
+        },
+
+        emptyContainer: {
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+
+            paddingHorizontal:
+                30,
+        },
+
+        emptyIcon: {
+            fontSize: 48,
+
+            marginBottom:
+                16,
+        },
+
+        emptyTitle: {
+            fontSize: 20,
+
+            fontWeight:
+                "700",
+
+            color:
+                colors.text,
+
+            marginBottom:
+                8,
+
+            textAlign:
+                "center",
+        },
+
+        emptyDescription: {
+            fontSize: 14,
+
+            lineHeight: 21,
+
+            color:
+                colors.gray,
+
+            textAlign:
+                "center",
+        },
+
+        inputContainer: {
+            flexDirection:
+                "row",
+
+            alignItems:
+                "flex-end",
+
+            paddingHorizontal:
+                12,
+
+            paddingVertical:
+                10,
+
+            backgroundColor:
+                colors.white,
+
+            borderTopWidth:
+                1,
+
+            borderTopColor:
+                colors.border,
+        },
+
+        input: {
+            flex: 1,
+
+            minHeight: 46,
+
+            maxHeight: 120,
+
+            backgroundColor:
+                colors.background,
+
+            borderWidth:
+                1,
+
+            borderColor:
+                colors.border,
+
+            borderRadius:
+                23,
+
+            paddingHorizontal:
+                16,
+
+            paddingVertical:
+                11,
+
+            fontSize: 15,
+
+            color:
+                colors.text,
+
+            marginRight: 8,
+        },
+
+        sendButton: {
+            width: 46,
+
+            height: 46,
+
+            borderRadius:
+                23,
+
+            backgroundColor:
+                colors.primary,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        sendButtonDisabled: {
+            opacity: 0.45,
+        },
+
+        sendButtonText: {
+            fontSize: 21,
+
+            color:
+                colors.white,
+        },
+
+        centerContainer: {
+            flex: 1,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        loadingText: {
+            marginTop: 12,
+
+            fontSize: 14,
+
+            color:
+                colors.gray,
+        },
+    });

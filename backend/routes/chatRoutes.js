@@ -1,38 +1,111 @@
-const express = require("express");
+const express =
+    require("express");
 
-const {
-    sendMessage,
-    getChatHistory,
-    getMessages,
-    removeConversation,
-} = require("../controllers/chatController");
+const chatController =
+    require(
+        "../controllers/chatController"
+    );
 
-const {
-    authMiddleware,
-} = require("../middleware/authMiddleware");
+const authModule =
+    require(
+        "../middleware/authMiddleware"
+    );
 
-const router = express.Router();
+// ========================================
+// AUTH
+// ========================================
 
-router.use(authMiddleware);
+const authMiddleware =
+    typeof authModule ===
+    "function"
+        ? authModule
+        : authModule.authMiddleware ||
+          authModule.protect ||
+          authModule.authenticate ||
+          authModule.authenticateToken ||
+          authModule.verifyToken;
 
+if (
+    typeof authMiddleware !==
+    "function"
+) {
+    throw new TypeError(
+        "authMiddleware không phải function."
+    );
+}
+
+// ========================================
+// CONTROLLERS
+// ========================================
+
+const requiredControllers =
+    [
+        "sendMessage",
+
+        "getChatHistory",
+
+        "getMessages",
+
+        "removeConversation",
+    ];
+
+for (
+    const controllerName of
+    requiredControllers
+) {
+    if (
+        typeof chatController[
+            controllerName
+        ] !==
+        "function"
+    ) {
+        throw new TypeError(
+            `chatController.${controllerName} không phải function.`
+        );
+    }
+}
+
+// ========================================
+// ROUTER
+// ========================================
+
+const router =
+    express.Router();
+
+router.use(
+    authMiddleware
+);
+
+// POST /api/chat
 router.post(
     "/",
-    sendMessage
+    chatController.sendMessage
 );
 
+// GET /api/chat/conversations
 router.get(
     "/conversations",
-    getChatHistory
+    chatController.getChatHistory
 );
 
+// GET /api/chat/conversations/:id/messages
 router.get(
     "/conversations/:conversationId/messages",
-    getMessages
+    chatController.getMessages
 );
 
+// DELETE /api/chat/conversations/:id
 router.delete(
     "/conversations/:conversationId",
-    removeConversation
+    chatController.removeConversation
 );
 
-module.exports = router;
+// ========================================
+// EXPORT
+// ========================================
+
+module.exports =
+    router;
+
+module.exports.chatRoutes =
+    router;

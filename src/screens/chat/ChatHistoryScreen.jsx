@@ -2,6 +2,7 @@ import React, {
     useCallback,
     useState,
 } from "react";
+
 import {
     View,
     Text,
@@ -9,197 +10,359 @@ import {
     FlatList,
     TouchableOpacity,
     Alert,
+    ActivityIndicator,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import {
     useFocusEffect,
 } from "@react-navigation/native";
 
 import colors from "../../styles/colors";
 
-const CHAT_HISTORY_KEY = "chat_history";
+import {
+    apiRequest,
+} from "../../services/api";
+
+// ========================================
+// DOCUMENT ID
+// ========================================
+
+const getDocumentId = (
+    document
+) => {
+    return (
+        document?._id ||
+        document?.id ||
+        null
+    );
+};
+
+// ========================================
+// HISTORY SCREEN
+// ========================================
 
 export default function ChatHistoryScreen({
     navigation,
     route,
 }) {
     const document =
-        route.params?.document;
+        route.params
+            ?.document;
 
-    const [conversations, setConversations] =
-        useState([]);
+    const documentId =
+        getDocumentId(
+            document
+        );
 
-    const [loading, setLoading] =
-        useState(true);
+    const [
+        conversations,
+        setConversations,
+    ] = useState([]);
 
-    const loadHistory = async () => {
-        try {
-            setLoading(true);
+    const [
+        loading,
+        setLoading,
+    ] = useState(true);
 
-            const storedData =
-                await AsyncStorage.getItem(
-                    CHAT_HISTORY_KEY
-                );
+    const [
+        error,
+        setError,
+    ] = useState("");
 
-            const allConversations =
-                storedData
-                    ? JSON.parse(storedData)
-                    : [];
+    // ========================================
+    // LOAD HISTORY
+    // ========================================
 
-            const filtered =
-                allConversations.filter(
-                    (item) =>
-                        item.documentId ===
-                        (document?.id || null)
-                );
+    const loadHistory =
+        useCallback(
+            async () => {
+                if (
+                    !documentId
+                ) {
+                    setConversations(
+                        []
+                    );
 
-            filtered.sort(
-                (a, b) =>
-                    new Date(
-                        b.updatedAt ||
-                            b.createdAt
-                    ) -
-                    new Date(
-                        a.updatedAt ||
-                            a.createdAt
-                    )
-            );
+                    setError(
+                        "Không tìm thấy Document ID."
+                    );
 
-            setConversations(filtered);
-        } catch (error) {
-            console.log(
-                "Load chat history error:",
-                error
-            );
+                    setLoading(
+                        false
+                    );
 
-            setConversations([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+                    return;
+                }
+
+                try {
+                    setLoading(
+                        true
+                    );
+
+                    setError(
+                        ""
+                    );
+
+                    const result =
+                        await apiRequest(
+                            `/chat/conversations?documentId=${encodeURIComponent(
+                                documentId
+                            )}`
+                        );
+
+                    const data =
+                        Array.isArray(
+                            result?.data
+                        )
+                            ? result.data
+                            : [];
+
+                    setConversations(
+                        data
+                    );
+
+                    console.log(
+                        "CHAT HISTORY:",
+                        data.length
+                    );
+                } catch (
+                    requestError
+                ) {
+                    console.log(
+                        "CHAT HISTORY ERROR:",
+                        requestError.message
+                    );
+
+                    setConversations(
+                        []
+                    );
+
+                    setError(
+                        requestError.message ||
+                            "Không thể tải lịch sử trò chuyện."
+                    );
+                } finally {
+                    setLoading(
+                        false
+                    );
+                }
+            },
+            [
+                documentId,
+            ]
+        );
+
+    // ========================================
+    // FOCUS
+    // ========================================
 
     useFocusEffect(
         useCallback(() => {
             loadHistory();
-        }, [document?.id])
+        }, [
+            loadHistory,
+        ])
     );
 
-    const handleOpenConversation = (
-        item
-    ) => {
-        navigation.navigate("Chat", {
-            document: document,
-            conversationId: item.id,
-            messages: item.messages || [],
-        });
-    };
+    // ========================================
+    // OPEN
+    // ========================================
 
-    const handleDeleteConversation = (
-        conversationId
-    ) => {
-        Alert.alert(
-            "Xóa cuộc trò chuyện",
-            "Bạn có chắc muốn xóa cuộc trò chuyện này?",
-            [
+    const handleOpenConversation =
+        (
+            item
+        ) => {
+            const conversationId =
+                item._id ||
+                item.id;
+
+            navigation.navigate(
+                "Chat",
                 {
-                    text: "Hủy",
-                    style: "cancel",
-                },
-                {
-                    text: "Xóa",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            const storedData =
-                                await AsyncStorage.getItem(
-                                    CHAT_HISTORY_KEY
-                                );
+                    document,
 
-                            const allConversations =
-                                storedData
-                                    ? JSON.parse(
-                                          storedData
-                                      )
-                                    : [];
+                    conversationId:
+                        String(
+                            conversationId
+                        ),
+                }
+            );
+        };
 
-                            const updated =
-                                allConversations.filter(
-                                    (item) =>
-                                        item.id !==
-                                        conversationId
-                                );
+    // ========================================
+    // DELETE
+    // ========================================
 
-                            await AsyncStorage.setItem(
-                                CHAT_HISTORY_KEY,
-                                JSON.stringify(
-                                    updated
+    const deleteConversation =
+        async (
+            conversationId
+        ) => {
+            try {
+                await apiRequest(
+                    `/chat/conversations/${conversationId}`,
+                    {
+                        method:
+                            "DELETE",
+                    }
+                );
+
+                setConversations(
+                    (
+                        previous
+                    ) =>
+                        previous.filter(
+                            (
+                                item
+                            ) =>
+                                String(
+                                    item._id ||
+                                        item.id
+                                ) !==
+                                String(
+                                    conversationId
                                 )
-                            );
+                        )
+                );
 
-                            setConversations(
-                                (prev) =>
-                                    prev.filter(
-                                        (item) =>
-                                            item.id !==
-                                            conversationId
-                                    )
-                            );
-                        } catch (error) {
-                            console.log(
-                                "Delete chat history error:",
-                                error
-                            );
-                        }
+                console.log(
+                    "CHAT DELETE SUCCESS:",
+                    conversationId
+                );
+            } catch (
+                requestError
+            ) {
+                console.log(
+                    "CHAT DELETE ERROR:",
+                    requestError.message
+                );
+
+                Alert.alert(
+                    "Lỗi",
+                    requestError.message ||
+                        "Không thể xóa cuộc trò chuyện."
+                );
+            }
+        };
+
+    const handleDeleteConversation =
+        (
+            conversationId
+        ) => {
+            Alert.alert(
+                "Xóa cuộc trò chuyện",
+                "Bạn có chắc muốn xóa cuộc trò chuyện này?",
+                [
+                    {
+                        text:
+                            "Hủy",
+
+                        style:
+                            "cancel",
                     },
-                },
-            ]
-        );
-    };
 
-    const handleNewChat = () => {
-        navigation.navigate("Chat", {
-            document: document,
-        });
-    };
+                    {
+                        text:
+                            "Xóa",
+
+                        style:
+                            "destructive",
+
+                        onPress:
+                            () =>
+                                deleteConversation(
+                                    conversationId
+                                ),
+                    },
+                ]
+            );
+        };
+
+    // ========================================
+    // NEW CHAT
+    // ========================================
+
+    const handleNewChat =
+        () => {
+            navigation.navigate(
+                "Chat",
+                {
+                    document,
+                }
+            );
+        };
+
+    // ========================================
+    // DATE
+    // ========================================
 
     const formatDate = (
         dateString
     ) => {
-        if (!dateString) {
+        if (
+            !dateString
+        ) {
             return "Không rõ thời gian";
         }
 
         const date =
-            new Date(dateString);
+            new Date(
+                dateString
+            );
 
-        if (Number.isNaN(date.getTime())) {
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
             return "Không rõ thời gian";
         }
 
         return date.toLocaleString(
             "vi-VN",
             {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
+                day:
+                    "2-digit",
+
+                month:
+                    "2-digit",
+
+                year:
+                    "numeric",
+
+                hour:
+                    "2-digit",
+
+                minute:
+                    "2-digit",
             }
         );
     };
 
+    // ========================================
+    // RENDER CONVERSATION
+    // ========================================
+
     const renderConversation = ({
         item,
     }) => {
+        const id =
+            item._id ||
+            item.id;
+
         const messageCount =
-            item.messages?.length || 0;
+            Number(
+                item.messageCount ||
+                    0
+            );
 
         return (
             <TouchableOpacity
                 style={
                     styles.conversationCard
                 }
-                activeOpacity={0.8}
+                activeOpacity={
+                    0.8
+                }
                 onPress={() =>
                     handleOpenConversation(
                         item
@@ -229,7 +392,9 @@ export default function ChatHistoryScreen({
                         style={
                             styles.conversationTitle
                         }
-                        numberOfLines={2}
+                        numberOfLines={
+                            2
+                        }
                     >
                         {item.title ||
                             "Cuộc trò chuyện"}
@@ -259,11 +424,15 @@ export default function ChatHistoryScreen({
                     style={
                         styles.deleteButton
                     }
-                    onPress={(event) => {
-                        event.stopPropagation();
+                    onPress={(
+                        event
+                    ) => {
+                        event.stopPropagation?.();
 
                         handleDeleteConversation(
-                            item.id
+                            String(
+                                id
+                            )
                         );
                     }}
                 >
@@ -279,10 +448,23 @@ export default function ChatHistoryScreen({
         );
     };
 
+    // ========================================
+    // UI
+    // ========================================
+
     return (
-        <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
+        <View
+            style={
+                styles.container
+            }
+        >
+            {/* HEADER */}
+
+            <View
+                style={
+                    styles.header
+                }
+            >
                 <TouchableOpacity
                     style={
                         styles.backButton
@@ -317,7 +499,9 @@ export default function ChatHistoryScreen({
                         style={
                             styles.headerSubtitle
                         }
-                        numberOfLines={1}
+                        numberOfLines={
+                            1
+                        }
                     >
                         {document?.name ||
                             "Tài liệu không tên"}
@@ -328,7 +512,9 @@ export default function ChatHistoryScreen({
                     style={
                         styles.newButton
                     }
-                    onPress={handleNewChat}
+                    onPress={
+                        handleNewChat
+                    }
                 >
                     <Text
                         style={
@@ -340,13 +526,21 @@ export default function ChatHistoryScreen({
                 </TouchableOpacity>
             </View>
 
-            {/* History */}
+            {/* CONTENT */}
+
             {loading ? (
                 <View
                     style={
                         styles.centerContainer
                     }
                 >
+                    <ActivityIndicator
+                        size="large"
+                        color={
+                            colors.primary
+                        }
+                    />
+
                     <Text
                         style={
                             styles.loadingText
@@ -355,11 +549,51 @@ export default function ChatHistoryScreen({
                         Đang tải lịch sử...
                     </Text>
                 </View>
+            ) : error ? (
+                <View
+                    style={
+                        styles.centerContainer
+                    }
+                >
+                    <Text
+                        style={
+                            styles.errorText
+                        }
+                    >
+                        {error}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={
+                            styles.retryButton
+                        }
+                        onPress={
+                            loadHistory
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.retryButtonText
+                            }
+                        >
+                            Thử lại
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             ) : (
                 <FlatList
-                    data={conversations}
-                    keyExtractor={(item) =>
-                        item.id
+                    data={
+                        conversations
+                    }
+                    keyExtractor={(
+                        item,
+                        index
+                    ) =>
+                        String(
+                            item._id ||
+                                item.id ||
+                                index
+                        )
                     }
                     renderItem={
                         renderConversation
@@ -392,8 +626,7 @@ export default function ChatHistoryScreen({
                                     styles.emptyTitle
                                 }
                             >
-                                Chưa có cuộc trò
-                                chuyện
+                                Chưa có cuộc trò chuyện
                             </Text>
 
                             <Text
@@ -401,9 +634,7 @@ export default function ChatHistoryScreen({
                                     styles.emptyDescription
                                 }
                             >
-                                Hãy bắt đầu một cuộc
-                                trò chuyện với AI về
-                                tài liệu này.
+                                Hãy bắt đầu một cuộc trò chuyện với AI về tài liệu này.
                             </Text>
 
                             <TouchableOpacity
@@ -430,193 +661,365 @@ export default function ChatHistoryScreen({
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor:
-            colors.background,
-    },
+// ========================================
+// STYLES
+// ========================================
 
-    header: {
-        height: 100,
-        paddingTop: 45,
-        paddingHorizontal: 14,
-        backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor:
-            colors.border,
-        flexDirection: "row",
-        alignItems: "center",
-    },
+const styles =
+    StyleSheet.create({
+        container: {
+            flex: 1,
 
-    backButton: {
-        width: 40,
-        height: 40,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+            backgroundColor:
+                colors.background,
+        },
 
-    backText: {
-        fontSize: 36,
-        lineHeight: 40,
-        color: colors.text,
-    },
+        header: {
+            height: 100,
 
-    headerContent: {
-        flex: 1,
-        paddingHorizontal: 8,
-    },
+            paddingTop: 45,
 
-    headerTitle: {
-        fontSize: 19,
-        fontWeight: "700",
-        color: colors.text,
-    },
+            paddingHorizontal:
+                14,
 
-    headerSubtitle: {
-        marginTop: 2,
-        fontSize: 12,
-        color: colors.gray,
-    },
+            backgroundColor:
+                colors.white,
 
-    newButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor:
-            colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+            borderBottomWidth:
+                1,
 
-    newButtonText: {
-        fontSize: 26,
-        color: colors.white,
-        lineHeight: 28,
-    },
+            borderBottomColor:
+                colors.border,
 
-    list: {
-        padding: 16,
-    },
+            flexDirection:
+                "row",
 
-    conversationCard: {
-        backgroundColor:
-            colors.white,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor:
-            colors.border,
-        padding: 14,
-        marginBottom: 12,
-        flexDirection: "row",
-        alignItems: "center",
-    },
+            alignItems:
+                "center",
+        },
 
-    conversationIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
-        backgroundColor:
-            "#EEF2FF",
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 12,
-    },
+        backButton: {
+            width: 40,
 
-    conversationIconText: {
-        fontSize: 23,
-    },
+            height: 40,
 
-    conversationContent: {
-        flex: 1,
-    },
+            alignItems:
+                "center",
 
-    conversationTitle: {
-        fontSize: 16,
-        lineHeight: 21,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 5,
-    },
+            justifyContent:
+                "center",
+        },
 
-    conversationMeta: {
-        fontSize: 12,
-        color: colors.gray,
-        marginBottom: 2,
-    },
+        backText: {
+            fontSize: 36,
 
-    conversationDate: {
-        fontSize: 12,
-        color: colors.gray,
-    },
+            lineHeight: 40,
 
-    deleteButton: {
-        width: 40,
-        height: 40,
-        alignItems: "center",
-        justifyContent: "center",
-        marginLeft: 4,
-    },
+            color:
+                colors.text,
+        },
 
-    deleteText: {
-        fontSize: 18,
-    },
+        headerContent: {
+            flex: 1,
 
-    emptyList: {
-        flexGrow: 1,
-        padding: 24,
-    },
+            paddingHorizontal:
+                8,
+        },
 
-    emptyContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+        headerTitle: {
+            fontSize: 19,
 
-    emptyIcon: {
-        fontSize: 50,
-        marginBottom: 16,
-    },
+            fontWeight:
+                "700",
 
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 8,
-        textAlign: "center",
-    },
+            color:
+                colors.text,
+        },
 
-    emptyDescription: {
-        fontSize: 14,
-        lineHeight: 21,
-        color: colors.gray,
-        textAlign: "center",
-        maxWidth: 300,
-        marginBottom: 20,
-    },
+        headerSubtitle: {
+            marginTop: 2,
 
-    startButton: {
-        backgroundColor:
-            colors.primary,
-        borderRadius: 12,
-        paddingHorizontal: 18,
-        paddingVertical: 12,
-    },
+            fontSize: 12,
 
-    startButtonText: {
-        color: colors.white,
-        fontSize: 14,
-        fontWeight: "700",
-    },
+            color:
+                colors.gray,
+        },
 
-    centerContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+        newButton: {
+            width: 40,
 
-    loadingText: {
-        fontSize: 14,
-        color: colors.gray,
-    },
-});
+            height: 40,
+
+            borderRadius:
+                20,
+
+            backgroundColor:
+                colors.primary,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        newButtonText: {
+            fontSize: 26,
+
+            color:
+                colors.white,
+
+            lineHeight: 28,
+        },
+
+        list: {
+            padding: 16,
+
+            paddingBottom:
+                30,
+        },
+
+        conversationCard: {
+            backgroundColor:
+                colors.white,
+
+            borderRadius:
+                16,
+
+            borderWidth:
+                1,
+
+            borderColor:
+                colors.border,
+
+            padding: 14,
+
+            marginBottom:
+                12,
+
+            flexDirection:
+                "row",
+
+            alignItems:
+                "center",
+        },
+
+        conversationIcon: {
+            width: 48,
+
+            height: 48,
+
+            borderRadius:
+                14,
+
+            backgroundColor:
+                "#EEF2FF",
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+
+            marginRight:
+                12,
+        },
+
+        conversationIconText: {
+            fontSize: 23,
+        },
+
+        conversationContent: {
+            flex: 1,
+        },
+
+        conversationTitle: {
+            fontSize: 16,
+
+            lineHeight: 21,
+
+            fontWeight:
+                "700",
+
+            color:
+                colors.text,
+
+            marginBottom:
+                5,
+        },
+
+        conversationMeta: {
+            fontSize: 12,
+
+            color:
+                colors.gray,
+
+            marginBottom:
+                2,
+        },
+
+        conversationDate: {
+            fontSize: 12,
+
+            color:
+                colors.gray,
+        },
+
+        deleteButton: {
+            width: 40,
+
+            height: 40,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+
+            marginLeft: 4,
+        },
+
+        deleteText: {
+            fontSize: 18,
+        },
+
+        emptyList: {
+            flexGrow: 1,
+
+            padding: 24,
+        },
+
+        emptyContainer: {
+            flex: 1,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        emptyIcon: {
+            fontSize: 50,
+
+            marginBottom:
+                16,
+        },
+
+        emptyTitle: {
+            fontSize: 20,
+
+            fontWeight:
+                "700",
+
+            color:
+                colors.text,
+
+            marginBottom:
+                8,
+
+            textAlign:
+                "center",
+        },
+
+        emptyDescription: {
+            fontSize: 14,
+
+            lineHeight: 21,
+
+            color:
+                colors.gray,
+
+            textAlign:
+                "center",
+
+            maxWidth: 300,
+
+            marginBottom:
+                20,
+        },
+
+        startButton: {
+            backgroundColor:
+                colors.primary,
+
+            borderRadius:
+                12,
+
+            paddingHorizontal:
+                18,
+
+            paddingVertical:
+                12,
+        },
+
+        startButtonText: {
+            color:
+                colors.white,
+
+            fontSize: 14,
+
+            fontWeight:
+                "700",
+        },
+
+        centerContainer: {
+            flex: 1,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+
+            paddingHorizontal:
+                30,
+        },
+
+        loadingText: {
+            marginTop: 12,
+
+            fontSize: 14,
+
+            color:
+                colors.gray,
+        },
+
+        errorText: {
+            fontSize: 14,
+
+            lineHeight: 21,
+
+            textAlign:
+                "center",
+
+            color:
+                colors.error,
+        },
+
+        retryButton: {
+            marginTop: 16,
+
+            paddingHorizontal:
+                18,
+
+            paddingVertical:
+                11,
+
+            borderRadius:
+                10,
+
+            backgroundColor:
+                colors.primary,
+        },
+
+        retryButtonText: {
+            color:
+                colors.white,
+
+            fontSize: 14,
+
+            fontWeight:
+                "700",
+        },
+    });

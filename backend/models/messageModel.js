@@ -1,4 +1,6 @@
-const { ObjectId } = require("mongodb");
+const {
+    ObjectId,
+} = require("mongodb");
 
 const createMessage = ({
     conversationId,
@@ -7,15 +9,28 @@ const createMessage = ({
     content,
 }) => {
     return {
-        _id: new ObjectId(),
+        _id:
+            new ObjectId(),
 
-        conversationId: new ObjectId(conversationId),
-        userId: new ObjectId(userId),
+        conversationId:
+            new ObjectId(
+                conversationId
+            ),
+
+        userId:
+            new ObjectId(
+                userId
+            ),
 
         role,
-        content,
 
-        createdAt: new Date(),
+        content:
+            String(
+                content || ""
+            ).trim(),
+
+        createdAt:
+            new Date(),
     };
 };
 
