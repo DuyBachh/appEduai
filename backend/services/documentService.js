@@ -217,8 +217,55 @@ const deleteDocument = async ({
     };
 };
 
+const uploadDocumentService = async ({
+    userId,
+    file,
+    subject = "",
+    topic = "",
+}) => {
+    validateObjectId(
+        userId,
+        "User ID không hợp lệ."
+    );
+
+    if (!file) {
+        const error = new Error(
+            "Vui lòng chọn file để upload."
+        );
+
+        error.statusCode = 400;
+
+        throw error;
+    }
+
+    const extension = file.originalname
+        .split(".")
+        .pop()
+        .toLowerCase();
+
+    const document =
+        createDocument({
+            userId,
+            name: file.originalname,
+            fileType: extension,
+            size: file.size,
+            uri: `/uploads/${file.filename}`,
+            subject,
+            topic,
+        });
+
+    const documentsCollection =
+        getDocumentsCollection();
+
+    await documentsCollection.insertOne(
+        document
+    );
+
+    return document;
+};
 module.exports = {
     createDocumentService,
+    uploadDocumentService,
     getDocuments,
     getDocumentById,
     updateDocument,

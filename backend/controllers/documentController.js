@@ -157,8 +157,53 @@ const deleteDocument = async (
     }
 };
 
+const uploadDocument = async (
+    req,
+    res,
+    next
+) => {
+    try {
+        console.log("BODY:", req.body);
+        console.log("FILES:", req.files);
+
+        const {
+            subject,
+            topic,
+        } = req.body;
+
+        const file =
+            req.files &&
+            req.files.length > 0
+                ? req.files[0]
+                : null;
+
+        console.log(
+            "FILE ĐƯỢC CHỌN:",
+            file
+        );
+
+        const document =
+            await documentService.uploadDocumentService({
+                userId: req.user.userId,
+                file,
+                subject,
+                topic,
+            });
+
+        res.status(201).json({
+            success: true,
+            message:
+                "Upload tài liệu thành công.",
+            data: document,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createDocument,
+    uploadDocument,
     getDocuments,
     getDocumentById,
     updateDocument,

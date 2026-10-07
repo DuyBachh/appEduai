@@ -1,9 +1,10 @@
 const express = require("express");
+const path = require("path");
 const cors = require("cors");
 
-const documentRoutes = require("./routes/documentRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
+const documentRoutes = require("./routes/documentRoutes");
 
 const {
     errorMiddleware,
@@ -11,6 +12,7 @@ const {
 
 const app = express();
 
+// Middleware
 app.use(cors());
 
 app.use(express.json());
@@ -21,6 +23,15 @@ app.use(
     })
 );
 
+// Cho phép truy cập các file đã upload
+app.use(
+    "/uploads",
+    express.static(
+        path.join(__dirname, "uploads")
+    )
+);
+
+// API Routes
 app.use(
     "/api/health",
     healthRoutes
@@ -36,16 +47,16 @@ app.use(
     documentRoutes
 );
 
-// 404
+// 404 - API không tồn tại
 app.use((req, res) => {
-    res.status(404).json({
+    return res.status(404).json({
         success: false,
         message:
             "API endpoint không tồn tại.",
     });
 });
 
-// Error Middleware
+// Global Error Middleware
 app.use(errorMiddleware);
 
 module.exports = app;
