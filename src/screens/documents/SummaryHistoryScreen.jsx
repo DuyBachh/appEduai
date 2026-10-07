@@ -2,6 +2,7 @@ import React, {
     useCallback,
     useState,
 } from "react";
+
 import {
     View,
     Text,
@@ -9,110 +10,181 @@ import {
     FlatList,
     TouchableOpacity,
     Alert,
+    ActivityIndicator,
+    RefreshControl,
 } from "react-native";
+
 import {
     useFocusEffect,
 } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import colors from "../../styles/colors";
 
-const SUMMARY_HISTORY_KEY = "summary_history";
+import {
+    apiRequest,
+} from "../../services/api";
 
 export default function SummaryHistoryScreen({
     navigation,
     route,
 }) {
     const documentId =
-        route.params?.documentId || null;
+        route.params?.documentId ||
+        null;
 
     const documentName =
         route.params?.documentName ||
         "Tài liệu không tên";
 
-    const [history, setHistory] = useState([]);
+    const [
+        history,
+        setHistory,
+    ] = useState([]);
 
-    const [isLoading, setIsLoading] =
-        useState(true);
+    const [
+        isLoading,
+        setIsLoading,
+    ] = useState(true);
 
-    const loadHistory = async () => {
-        try {
-            setIsLoading(true);
+    const [
+        refreshing,
+        setRefreshing,
+    ] = useState(false);
 
-            const storedHistory =
-                await AsyncStorage.getItem(
-                    SUMMARY_HISTORY_KEY
-                );
+    const [
+        error,
+        setError,
+    ] = useState("");
 
-            if (!storedHistory) {
-                setHistory([]);
-                return;
-            }
+    // ========================================
+    // LOAD HISTORY
+    // ========================================
 
-            const parsedHistory =
-                JSON.parse(storedHistory);
+    const loadHistory =
+        useCallback(
+            async (
+                showLoading = true
+            ) => {
+                if (!documentId) {
+                    setHistory([]);
+                    setError(
+                        "Không tìm thấy Document ID."
+                    );
+                    setIsLoading(false);
 
-            if (!Array.isArray(parsedHistory)) {
-                setHistory([]);
-                return;
-            }
+                    return;
+                }
 
-            /*
-             * Chỉ lấy lịch sử thuộc tài liệu hiện tại.
-             *
-             * Ví dụ:
-             * documentId = "123"
-             *
-             * Chỉ lấy:
-             * item.documentId === "123"
-             */
-            const filteredHistory =
-                parsedHistory.filter(
-                    (item) =>
-                        item.documentId ===
-                        documentId
-                );
+                try {
+                    if (showLoading) {
+                        setIsLoading(true);
+                    }
 
-            setHistory(filteredHistory);
-        } catch (error) {
-            console.log(
-                "Load summary history error:",
-                error
-            );
+                    setError("");
 
-            Alert.alert(
-                "Lỗi",
-                "Không thể tải lịch sử tóm tắt."
-            );
+                    const result =
+                        await apiRequest(
+                            `/summaries/documents/${documentId}`
+                        );
 
-            setHistory([]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+                    const summaries =
+                        Array.isArray(
+                            result?.data
+                        )
+                            ? result.data
+                            : [];
+
+                    console.log(
+                        "SUMMARY HISTORY SUCCESS:",
+                        summaries.length
+                    );
+
+                    setHistory(
+                        summaries
+                    );
+                } catch (err) {
+                    console.log(
+                        "SUMMARY HISTORY ERROR:",
+                        err.message
+                    );
+
+                    setError(
+                        err.message ||
+                            "Không thể tải lịch sử tóm tắt."
+                    );
+
+                    setHistory([]);
+                } finally {
+                    if (showLoading) {
+                        setIsLoading(
+                            false
+                        );
+                    }
+
+                    setRefreshing(
+                        false
+                    );
+                }
+            },
+            [documentId]
+        );
 
     useFocusEffect(
         useCallback(() => {
             loadHistory();
-        }, [documentId])
+        }, [loadHistory])
     );
 
-    const formatDate = (dateString) => {
+    // ========================================
+    // REFRESH
+    // ========================================
+
+    const handleRefresh =
+        async () => {
+            setRefreshing(true);
+
+            await loadHistory(
+                false
+            );
+        };
+
+    // ========================================
+    // FORMAT DATE
+    // ========================================
+
+    const formatDate = (
+        dateString
+    ) => {
         if (!dateString) {
             return "Không rõ thời gian";
         }
 
-        const date = new Date(dateString);
+        const date =
+            new Date(
+                dateString
+            );
 
-        if (Number.isNaN(date.getTime())) {
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
             return "Không rõ thời gian";
         }
 
-        return date.toLocaleString("vi-VN");
+        return date.toLocaleString(
+            "vi-VN"
+        );
     };
 
-    const getLengthLabel = (length) => {
-        switch (length) {
+    // ========================================
+    // TYPE LABEL
+    // ========================================
+
+    const getTypeLabel = (
+        type
+    ) => {
+        switch (type) {
             case "short":
                 return "Ngắn";
 
@@ -127,122 +199,108 @@ export default function SummaryHistoryScreen({
         }
     };
 
-    const getChapterLabel = (chapter) => {
-        if (chapter === "all") {
-            return "Toàn bộ tài liệu";
-        }
+    // ========================================
+    // OPEN DETAIL
+    // ========================================
 
-        if (chapter === "chapter1") {
-            return "Chapter 1";
-        }
-
-        return chapter || "Không xác định";
-    };
-
-    const handleOpenSummaryDetail = (item) => {
-        navigation.navigate(
-            "SummaryHistoryDetail",
-            {
-                summaryItem: item,
-            }
-        );
-    };
-
-    const handleDeleteHistory = async (id) => {
-        Alert.alert(
-            "Xóa lịch sử",
-            "Bạn có chắc muốn xóa bản tóm tắt này?",
-            [
+    const handleOpenSummaryDetail =
+        (
+            item
+        ) => {
+            navigation.navigate(
+                "SummaryHistoryDetail",
                 {
-                    text: "Hủy",
-                    style: "cancel",
-                },
-                {
-                    text: "Xóa",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            const storedHistory =
-                                await AsyncStorage.getItem(
-                                    SUMMARY_HISTORY_KEY
-                                );
+                    summaryId:
+                        item._id,
 
-                            let allHistory = [];
+                    documentName,
+                }
+            );
+        };
 
-                            if (storedHistory) {
-                                const parsedHistory =
-                                    JSON.parse(
-                                        storedHistory
+    // ========================================
+    // DELETE
+    // ========================================
+
+    const handleDeleteHistory =
+        (
+            summaryId
+        ) => {
+            Alert.alert(
+                "Xóa bản tóm tắt",
+                "Bạn có chắc muốn xóa bản tóm tắt này?",
+                [
+                    {
+                        text: "Hủy",
+                        style: "cancel",
+                    },
+                    {
+                        text: "Xóa",
+                        style: "destructive",
+
+                        onPress:
+                            async () => {
+                                try {
+                                    await apiRequest(
+                                        `/summaries/${summaryId}`,
+                                        {
+                                            method:
+                                                "DELETE",
+                                        }
                                     );
 
-                                if (
-                                    Array.isArray(
-                                        parsedHistory
-                                    )
+                                    setHistory(
+                                        (
+                                            current
+                                        ) =>
+                                            current.filter(
+                                                (
+                                                    item
+                                                ) =>
+                                                    item._id !==
+                                                    summaryId
+                                            )
+                                    );
+                                } catch (
+                                    err
                                 ) {
-                                    allHistory =
-                                        parsedHistory;
+                                    Alert.alert(
+                                        "Lỗi",
+                                        err.message ||
+                                            "Không thể xóa bản tóm tắt."
+                                    );
                                 }
-                            }
-
-                            /*
-                             * Xóa khỏi toàn bộ storage
-                             * theo ID duy nhất của summary.
-                             */
-                            const updatedAllHistory =
-                                allHistory.filter(
-                                    (item) =>
-                                        item.id !== id
-                                );
-
-                            await AsyncStorage.setItem(
-                                SUMMARY_HISTORY_KEY,
-                                JSON.stringify(
-                                    updatedAllHistory
-                                )
-                            );
-
-                            /*
-                             * Cập nhật lại danh sách
-                             * đang hiển thị.
-                             */
-                            const updatedCurrentHistory =
-                                history.filter(
-                                    (item) =>
-                                        item.id !== id
-                                );
-
-                            setHistory(
-                                updatedCurrentHistory
-                            );
-                        } catch (error) {
-                            console.log(
-                                "Delete summary history error:",
-                                error
-                            );
-
-                            Alert.alert(
-                                "Lỗi",
-                                "Không thể xóa lịch sử."
-                            );
-                        }
+                            },
                     },
-                },
-            ]
-        );
-    };
+                ]
+            );
+        };
 
-    const renderHistoryItem = ({ item }) => {
+    // ========================================
+    // ITEM
+    // ========================================
+
+    const renderHistoryItem = ({
+        item,
+    }) => {
         return (
-            <View style={styles.card}>
+            <View
+                style={
+                    styles.card
+                }
+            >
                 <TouchableOpacity
-                    style={styles.cardContent}
+                    style={
+                        styles.cardContent
+                    }
                     onPress={() =>
                         handleOpenSummaryDetail(
                             item
                         )
                     }
-                    activeOpacity={0.8}
+                    activeOpacity={
+                        0.8
+                    }
                 >
                     <View
                         style={
@@ -272,10 +330,13 @@ export default function SummaryHistoryScreen({
                                 style={
                                     styles.documentName
                                 }
-                                numberOfLines={2}
+                                numberOfLines={
+                                    2
+                                }
                             >
-                                {item.documentName ||
-                                    "Tài liệu không tên"}
+                                {
+                                    documentName
+                                }
                             </Text>
 
                             <Text
@@ -291,7 +352,9 @@ export default function SummaryHistoryScreen({
                     </View>
 
                     <View
-                        style={styles.infoRow}
+                        style={
+                            styles.infoRow
+                        }
                     >
                         <View
                             style={
@@ -303,24 +366,8 @@ export default function SummaryHistoryScreen({
                                     styles.badgeText
                                 }
                             >
-                                {getLengthLabel(
-                                    item.summaryLength
-                                )}
-                            </Text>
-                        </View>
-
-                        <View
-                            style={
-                                styles.badge
-                            }
-                        >
-                            <Text
-                                style={
-                                    styles.badgeText
-                                }
-                            >
-                                {getChapterLabel(
-                                    item.chapter
+                                {getTypeLabel(
+                                    item.type
                                 )}
                             </Text>
                         </View>
@@ -330,25 +377,21 @@ export default function SummaryHistoryScreen({
                         style={
                             styles.preview
                         }
-                        numberOfLines={4}
+                        numberOfLines={
+                            4
+                        }
                     >
-                        {item.summary ||
+                        {item.content ||
                             "Không có nội dung tóm tắt."}
                     </Text>
 
-                    <View
+                    <Text
                         style={
-                            styles.viewDetailContainer
+                            styles.viewDetailText
                         }
                     >
-                        <Text
-                            style={
-                                styles.viewDetailText
-                            }
-                        >
-                            Xem đầy đủ →
-                        </Text>
-                    </View>
+                        Xem đầy đủ →
+                    </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -357,7 +400,7 @@ export default function SummaryHistoryScreen({
                     }
                     onPress={() =>
                         handleDeleteHistory(
-                            item.id
+                            item._id
                         )
                     }
                 >
@@ -373,9 +416,21 @@ export default function SummaryHistoryScreen({
         );
     };
 
+    // ========================================
+    // UI
+    // ========================================
+
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
+        <View
+            style={
+                styles.container
+            }
+        >
+            <View
+                style={
+                    styles.header
+                }
+            >
                 <TouchableOpacity
                     style={
                         styles.backButton
@@ -402,7 +457,6 @@ export default function SummaryHistoryScreen({
                         style={
                             styles.title
                         }
-                        numberOfLines={1}
                     >
                         Lịch sử tóm tắt
                     </Text>
@@ -411,9 +465,13 @@ export default function SummaryHistoryScreen({
                         style={
                             styles.headerDocumentName
                         }
-                        numberOfLines={1}
+                        numberOfLines={
+                            1
+                        }
                     >
-                        {documentName}
+                        {
+                            documentName
+                        }
                     </Text>
                 </View>
 
@@ -430,6 +488,13 @@ export default function SummaryHistoryScreen({
                         styles.centerContainer
                     }
                 >
+                    <ActivityIndicator
+                        size="large"
+                        color={
+                            colors.primary
+                        }
+                    />
+
                     <Text
                         style={
                             styles.loadingText
@@ -438,7 +503,47 @@ export default function SummaryHistoryScreen({
                         Đang tải lịch sử...
                     </Text>
                 </View>
-            ) : history.length === 0 ? (
+            ) : error ? (
+                <View
+                    style={
+                        styles.centerContainer
+                    }
+                >
+                    <Text
+                        style={
+                            styles.emptyTitle
+                        }
+                    >
+                        Không thể tải
+                    </Text>
+
+                    <Text
+                        style={
+                            styles.emptyText
+                        }
+                    >
+                        {error}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={
+                            styles.retryButton
+                        }
+                        onPress={() =>
+                            loadHistory()
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.retryText
+                            }
+                        >
+                            Thử lại
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            ) : history.length ===
+              0 ? (
                 <View
                     style={
                         styles.centerContainer
@@ -466,14 +571,18 @@ export default function SummaryHistoryScreen({
                         }
                     >
                         Tài liệu này chưa có bản
-                        tóm tắt nào được lưu.
+                        tóm tắt nào.
                     </Text>
                 </View>
             ) : (
                 <FlatList
-                    data={history}
-                    keyExtractor={(item) =>
-                        item.id
+                    data={
+                        history
+                    }
+                    keyExtractor={(
+                        item
+                    ) =>
+                        item._id
                     }
                     renderItem={
                         renderHistoryItem
@@ -484,208 +593,230 @@ export default function SummaryHistoryScreen({
                     showsVerticalScrollIndicator={
                         false
                     }
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={
+                                refreshing
+                            }
+                            onRefresh={
+                                handleRefresh
+                            }
+                        />
+                    }
                 />
             )}
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor:
-            colors.background,
-    },
+const styles =
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor:
+                colors.background,
+        },
 
-    header: {
-        height: 100,
-        paddingTop: 45,
-        paddingHorizontal: 20,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent:
-            "space-between",
-        backgroundColor:
-            colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor:
-            colors.border,
-    },
+        header: {
+            height: 100,
+            paddingTop: 45,
+            paddingHorizontal: 20,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent:
+                "space-between",
+            backgroundColor:
+                colors.white,
+            borderBottomWidth: 1,
+            borderBottomColor:
+                colors.border,
+        },
 
-    backButton: {
-        width: 40,
-        height: 40,
-        alignItems: "center",
-        justifyContent:
-            "center",
-    },
+        backButton: {
+            width: 40,
+            height: 40,
+            alignItems: "center",
+            justifyContent:
+                "center",
+        },
 
-    backText: {
-        fontSize: 36,
-        color: colors.text,
-        lineHeight: 40,
-    },
+        backText: {
+            fontSize: 36,
+            color: colors.text,
+            lineHeight: 40,
+        },
 
-    headerTitleContainer: {
-        flex: 1,
-        alignItems: "center",
-        marginHorizontal: 8,
-    },
+        headerTitleContainer: {
+            flex: 1,
+            alignItems: "center",
+            marginHorizontal: 8,
+        },
 
-    title: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-    },
+        title: {
+            fontSize: 20,
+            fontWeight: "700",
+            color: colors.text,
+        },
 
-    headerDocumentName: {
-        fontSize: 12,
-        color: colors.gray,
-        marginTop: 2,
-    },
+        headerDocumentName: {
+            fontSize: 12,
+            color: colors.gray,
+            marginTop: 2,
+        },
 
-    headerSpace: {
-        width: 40,
-    },
+        headerSpace: {
+            width: 40,
+        },
 
-    listContent: {
-        padding: 20,
-        paddingBottom: 40,
-    },
+        listContent: {
+            padding: 20,
+            paddingBottom: 40,
+        },
 
-    card: {
-        backgroundColor:
-            colors.white,
-        borderRadius: 14,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor:
-            colors.border,
-        overflow: "hidden",
-    },
+        card: {
+            backgroundColor:
+                colors.white,
+            borderRadius: 14,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor:
+                colors.border,
+            overflow: "hidden",
+        },
 
-    cardContent: {
-        padding: 16,
-    },
+        cardContent: {
+            padding: 16,
+        },
 
-    cardHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
+        cardHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+        },
 
-    iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor:
-            "#EEF2FF",
-        alignItems: "center",
-        justifyContent:
-            "center",
-        marginRight: 12,
-    },
+        iconContainer: {
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            backgroundColor:
+                "#EEF2FF",
+            alignItems: "center",
+            justifyContent:
+                "center",
+            marginRight: 12,
+        },
 
-    icon: {
-        fontSize: 24,
-    },
+        icon: {
+            fontSize: 24,
+        },
 
-    headerContent: {
-        flex: 1,
-    },
+        headerContent: {
+            flex: 1,
+        },
 
-    documentName: {
-        fontSize: 17,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 4,
-    },
+        documentName: {
+            fontSize: 17,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: 4,
+        },
 
-    date: {
-        fontSize: 13,
-        color: colors.gray,
-    },
+        date: {
+            fontSize: 13,
+            color: colors.gray,
+        },
 
-    infoRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        marginTop: 14,
-        gap: 8,
-    },
+        infoRow: {
+            flexDirection: "row",
+            marginTop: 14,
+        },
 
-    badge: {
-        backgroundColor:
-            "#F3F4F6",
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 8,
-    },
+        badge: {
+            backgroundColor:
+                "#F3F4F6",
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 8,
+        },
 
-    badgeText: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: colors.gray,
-    },
+        badgeText: {
+            fontSize: 12,
+            fontWeight: "600",
+            color: colors.gray,
+        },
 
-    preview: {
-        fontSize: 14,
-        lineHeight: 21,
-        color: colors.text,
-        marginTop: 14,
-    },
+        preview: {
+            fontSize: 14,
+            lineHeight: 21,
+            color: colors.text,
+            marginTop: 14,
+        },
 
-    viewDetailContainer: {
-        marginTop: 14,
-    },
+        viewDetailText: {
+            fontSize: 14,
+            fontWeight: "700",
+            color: colors.primary,
+            marginTop: 14,
+        },
 
-    viewDetailText: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: colors.primary,
-    },
+        deleteButton: {
+            borderTopWidth: 1,
+            borderTopColor:
+                colors.border,
+            paddingVertical: 12,
+            alignItems: "center",
+        },
 
-    deleteButton: {
-        borderTopWidth: 1,
-        borderTopColor:
-            colors.border,
-        paddingVertical: 12,
-        alignItems: "center",
-    },
+        deleteText: {
+            fontSize: 14,
+            fontWeight: "600",
+            color: colors.error,
+        },
 
-    deleteText: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: colors.error,
-    },
+        centerContainer: {
+            flex: 1,
+            alignItems: "center",
+            justifyContent:
+                "center",
+            paddingHorizontal: 30,
+        },
 
-    centerContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent:
-            "center",
-        paddingHorizontal: 30,
-    },
+        loadingText: {
+            marginTop: 12,
+            fontSize: 15,
+            color: colors.gray,
+        },
 
-    loadingText: {
-        fontSize: 15,
-        color: colors.gray,
-    },
+        emptyIcon: {
+            fontSize: 50,
+            marginBottom: 16,
+        },
 
-    emptyIcon: {
-        fontSize: 50,
-        marginBottom: 16,
-    },
+        emptyTitle: {
+            fontSize: 20,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: 8,
+        },
 
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 8,
-    },
+        emptyText: {
+            fontSize: 15,
+            lineHeight: 22,
+            color: colors.gray,
+            textAlign: "center",
+        },
 
-    emptyText: {
-        fontSize: 15,
-        lineHeight: 22,
-        color: colors.gray,
-        textAlign: "center",
-    },
-});
+        retryButton: {
+            marginTop: 18,
+            backgroundColor:
+                colors.primary,
+            paddingHorizontal: 20,
+            paddingVertical: 11,
+            borderRadius: 10,
+        },
+
+        retryText: {
+            color: colors.white,
+            fontSize: 14,
+            fontWeight: "700",
+        },
+    });

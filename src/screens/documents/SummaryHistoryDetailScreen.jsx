@@ -1,67 +1,159 @@
-import React from "react";
+import React, {
+    useCallback,
+    useState,
+} from "react";
+
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
+    ActivityIndicator,
 } from "react-native";
 
+import {
+    useFocusEffect,
+} from "@react-navigation/native";
+
 import colors from "../../styles/colors";
+
+import {
+    apiRequest,
+} from "../../services/api";
 
 export default function SummaryHistoryDetailScreen({
     navigation,
     route,
 }) {
-    const summaryItem = route.params?.summaryItem;
+    const summaryId =
+        route.params?.summaryId ||
+        null;
 
-    if (!summaryItem) {
-        return (
-            <View style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Text style={styles.backText}>‹</Text>
-                    </TouchableOpacity>
+    const documentName =
+        route.params?.documentName ||
+        "Tài liệu";
 
-                    <Text style={styles.headerTitle}>
-                        Chi tiết tóm tắt
-                    </Text>
+    const [
+        summary,
+        setSummary,
+    ] = useState(null);
 
-                    <View style={styles.headerSpace} />
-                </View>
+    const [
+        isLoading,
+        setIsLoading,
+    ] = useState(true);
 
-                <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyTitle}>
-                        Không tìm thấy bản tóm tắt
-                    </Text>
+    const [
+        error,
+        setError,
+    ] = useState("");
 
-                    <Text style={styles.emptyText}>
-                        Dữ liệu bản tóm tắt không tồn tại.
-                    </Text>
-                </View>
-            </View>
+    // ========================================
+    // LOAD DETAIL
+    // ========================================
+
+    const loadSummaryDetail =
+        useCallback(
+            async () => {
+                if (!summaryId) {
+                    setError(
+                        "Không tìm thấy Summary ID."
+                    );
+                    setIsLoading(
+                        false
+                    );
+
+                    return;
+                }
+
+                try {
+                    setIsLoading(
+                        true
+                    );
+
+                    setError("");
+
+                    const result =
+                        await apiRequest(
+                            `/summaries/${summaryId}`
+                        );
+
+                    console.log(
+                        "SUMMARY DETAIL SUCCESS:",
+                        result?.data
+                    );
+
+                    setSummary(
+                        result?.data ||
+                            null
+                    );
+                } catch (err) {
+                    console.log(
+                        "SUMMARY DETAIL ERROR:",
+                        err.message
+                    );
+
+                    setError(
+                        err.message ||
+                            "Không thể tải chi tiết tóm tắt."
+                    );
+
+                    setSummary(
+                        null
+                    );
+                } finally {
+                    setIsLoading(
+                        false
+                    );
+                }
+            },
+            [summaryId]
         );
-    }
 
-    const formatDate = (dateString) => {
+    useFocusEffect(
+        useCallback(() => {
+            loadSummaryDetail();
+        }, [loadSummaryDetail])
+    );
+
+    // ========================================
+    // FORMAT DATE
+    // ========================================
+
+    const formatDate = (
+        dateString
+    ) => {
         if (!dateString) {
             return "Không rõ thời gian";
         }
 
-        const date = new Date(dateString);
+        const date =
+            new Date(
+                dateString
+            );
 
-        if (Number.isNaN(date.getTime())) {
+        if (
+            Number.isNaN(
+                date.getTime()
+            )
+        ) {
             return "Không rõ thời gian";
         }
 
-        return date.toLocaleString("vi-VN");
+        return date.toLocaleString(
+            "vi-VN"
+        );
     };
 
-    const getLengthLabel = (length) => {
-        switch (length) {
+    // ========================================
+    // TYPE
+    // ========================================
+
+    const getTypeLabel = (
+        type
+    ) => {
+        switch (type) {
             case "short":
                 return "Ngắn";
 
@@ -76,261 +168,476 @@ export default function SummaryHistoryDetailScreen({
         }
     };
 
-    const getChapterLabel = (chapter) => {
-        if (chapter === "all") {
-            return "Toàn bộ tài liệu";
-        }
+    // ========================================
+    // HEADER
+    // ========================================
 
-        if (chapter === "chapter1") {
-            return "Chapter 1";
-        }
-
-        return chapter || "Không xác định";
-    };
-
-    return (
-        <View style={styles.container}>
-            <View style={styles.header}>
+    const renderHeader = () => {
+        return (
+            <View
+                style={
+                    styles.header
+                }
+            >
                 <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => navigation.goBack()}
+                    style={
+                        styles.backButton
+                    }
+                    onPress={() =>
+                        navigation.goBack()
+                    }
                 >
-                    <Text style={styles.backText}>‹</Text>
+                    <Text
+                        style={
+                            styles.backText
+                        }
+                    >
+                        ‹
+                    </Text>
                 </TouchableOpacity>
 
-                <Text style={styles.headerTitle}>
+                <Text
+                    style={
+                        styles.headerTitle
+                    }
+                >
                     Chi tiết tóm tắt
                 </Text>
 
-                <View style={styles.headerSpace} />
+                <View
+                    style={
+                        styles.headerSpace
+                    }
+                />
             </View>
+        );
+    };
+
+    // ========================================
+    // LOADING
+    // ========================================
+
+    if (isLoading) {
+        return (
+            <View
+                style={
+                    styles.container
+                }
+            >
+                {renderHeader()}
+
+                <View
+                    style={
+                        styles.centerContainer
+                    }
+                >
+                    <ActivityIndicator
+                        size="large"
+                        color={
+                            colors.primary
+                        }
+                    />
+
+                    <Text
+                        style={
+                            styles.loadingText
+                        }
+                    >
+                        Đang tải chi tiết...
+                    </Text>
+                </View>
+            </View>
+        );
+    }
+
+    // ========================================
+    // ERROR
+    // ========================================
+
+    if (
+        error ||
+        !summary
+    ) {
+        return (
+            <View
+                style={
+                    styles.container
+                }
+            >
+                {renderHeader()}
+
+                <View
+                    style={
+                        styles.centerContainer
+                    }
+                >
+                    <Text
+                        style={
+                            styles.emptyTitle
+                        }
+                    >
+                        Không tìm thấy bản tóm tắt
+                    </Text>
+
+                    <Text
+                        style={
+                            styles.emptyText
+                        }
+                    >
+                        {error ||
+                            "Dữ liệu bản tóm tắt không tồn tại."}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={
+                            styles.retryButton
+                        }
+                        onPress={
+                            loadSummaryDetail
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.retryText
+                            }
+                        >
+                            Thử lại
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    }
+
+    // ========================================
+    // UI
+    // ========================================
+
+    return (
+        <View
+            style={
+                styles.container
+            }
+        >
+            {renderHeader()}
 
             <ScrollView
-                contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
+                contentContainerStyle={
+                    styles.content
+                }
+                showsVerticalScrollIndicator={
+                    false
+                }
             >
-                <View style={styles.documentCard}>
-                    <Text style={styles.documentIcon}>
+                <View
+                    style={
+                        styles.documentCard
+                    }
+                >
+                    <Text
+                        style={
+                            styles.documentIcon
+                        }
+                    >
                         📄
                     </Text>
 
-                    <View style={styles.documentInfo}>
+                    <View
+                        style={
+                            styles.documentInfo
+                        }
+                    >
                         <Text
-                            style={styles.documentName}
-                            numberOfLines={3}
+                            style={
+                                styles.documentName
+                            }
+                            numberOfLines={
+                                3
+                            }
                         >
-                            {summaryItem.documentName ||
-                                "Tài liệu không tên"}
+                            {
+                                documentName
+                            }
                         </Text>
 
-                        <Text style={styles.date}>
+                        <Text
+                            style={
+                                styles.date
+                            }
+                        >
                             {formatDate(
-                                summaryItem.createdAt
+                                summary.createdAt
                             )}
                         </Text>
                     </View>
                 </View>
 
-                <View style={styles.infoContainer}>
-                    <View style={styles.infoItem}>
-                        <Text style={styles.infoLabel}>
+                <View
+                    style={
+                        styles.infoContainer
+                    }
+                >
+                    <View
+                        style={
+                            styles.infoItem
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.infoLabel
+                            }
+                        >
                             Độ dài
                         </Text>
 
-                        <Text style={styles.infoValue}>
-                            {getLengthLabel(
-                                summaryItem.summaryLength
+                        <Text
+                            style={
+                                styles.infoValue
+                            }
+                        >
+                            {getTypeLabel(
+                                summary.type
                             )}
                         </Text>
                     </View>
 
-                    <View style={styles.infoItem}>
-                        <Text style={styles.infoLabel}>
-                            Phạm vi
+                    <View
+                        style={
+                            styles.infoItem
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.infoLabel
+                            }
+                        >
+                            Cập nhật
                         </Text>
 
-                        <Text style={styles.infoValue}>
-                            {getChapterLabel(
-                                summaryItem.chapter
+                        <Text
+                            style={
+                                styles.infoValueSmall
+                            }
+                        >
+                            {formatDate(
+                                summary.updatedAt
                             )}
                         </Text>
                     </View>
                 </View>
 
-                <View style={styles.summaryContainer}>
-                    <Text style={styles.summaryTitle}>
-                        Bản tóm tắt
+                <View
+                    style={
+                        styles.summaryContainer
+                    }
+                >
+                    <Text
+                        style={
+                            styles.summaryTitle
+                        }
+                    >
+                        {summary.title ||
+                            "Bản tóm tắt"}
                     </Text>
 
-                    <View style={styles.summarySection}>
-                        <Text style={styles.sectionTitle}>
-                            Nội dung
-                        </Text>
-
-                        <Text style={styles.summaryText}>
-                            {summaryItem.summary ||
-                                "Không có nội dung tóm tắt."}
-                        </Text>
-                    </View>
+                    <Text
+                        style={
+                            styles.summaryText
+                        }
+                    >
+                        {summary.content ||
+                            "Không có nội dung tóm tắt."}
+                    </Text>
                 </View>
             </ScrollView>
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colors.background,
-    },
+const styles =
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor:
+                colors.background,
+        },
 
-    header: {
-        height: 100,
-        paddingTop: 45,
-        paddingHorizontal: 20,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
+        header: {
+            height: 100,
+            paddingTop: 45,
+            paddingHorizontal: 20,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent:
+                "space-between",
+            backgroundColor:
+                colors.white,
+            borderBottomWidth: 1,
+            borderBottomColor:
+                colors.border,
+        },
 
-    backButton: {
-        width: 40,
-        height: 40,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+        backButton: {
+            width: 40,
+            height: 40,
+            alignItems: "center",
+            justifyContent:
+                "center",
+        },
 
-    backText: {
-        fontSize: 36,
-        color: colors.text,
-        lineHeight: 40,
-    },
+        backText: {
+            fontSize: 36,
+            color: colors.text,
+            lineHeight: 40,
+        },
 
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-    },
+        headerTitle: {
+            fontSize: 20,
+            fontWeight: "700",
+            color: colors.text,
+        },
 
-    headerSpace: {
-        width: 40,
-    },
+        headerSpace: {
+            width: 40,
+        },
 
-    content: {
-        padding: 20,
-        paddingBottom: 40,
-    },
+        content: {
+            padding: 20,
+            paddingBottom: 40,
+        },
 
-    documentCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: colors.white,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: colors.border,
-        padding: 16,
-        marginBottom: 16,
-    },
+        documentCard: {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor:
+                colors.white,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor:
+                colors.border,
+            padding: 16,
+            marginBottom: 16,
+        },
 
-    documentIcon: {
-        fontSize: 32,
-        marginRight: 14,
-    },
+        documentIcon: {
+            fontSize: 32,
+            marginRight: 14,
+        },
 
-    documentInfo: {
-        flex: 1,
-    },
+        documentInfo: {
+            flex: 1,
+        },
 
-    documentName: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 5,
-    },
+        documentName: {
+            fontSize: 18,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: 5,
+        },
 
-    date: {
-        fontSize: 13,
-        color: colors.gray,
-    },
+        date: {
+            fontSize: 13,
+            color: colors.gray,
+        },
 
-    infoContainer: {
-        flexDirection: "row",
-        backgroundColor: colors.white,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: colors.border,
-        padding: 16,
-        marginBottom: 16,
-    },
+        infoContainer: {
+            flexDirection: "row",
+            backgroundColor:
+                colors.white,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor:
+                colors.border,
+            padding: 16,
+            marginBottom: 16,
+        },
 
-    infoItem: {
-        flex: 1,
-    },
+        infoItem: {
+            flex: 1,
+        },
 
-    infoLabel: {
-        fontSize: 13,
-        color: colors.gray,
-        marginBottom: 5,
-    },
+        infoLabel: {
+            fontSize: 13,
+            color: colors.gray,
+            marginBottom: 5,
+        },
 
-    infoValue: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: colors.text,
-    },
+        infoValue: {
+            fontSize: 15,
+            fontWeight: "600",
+            color: colors.text,
+        },
 
-    summaryContainer: {
-        backgroundColor: colors.white,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: colors.border,
-        padding: 18,
-    },
+        infoValueSmall: {
+            fontSize: 12,
+            fontWeight: "600",
+            color: colors.text,
+        },
 
-    summaryTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 20,
-    },
+        summaryContainer: {
+            backgroundColor:
+                colors.white,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor:
+                colors.border,
+            padding: 18,
+        },
 
-    summarySection: {
-        marginBottom: 10,
-    },
+        summaryTitle: {
+            fontSize: 20,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: 18,
+        },
 
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 10,
-    },
+        summaryText: {
+            fontSize: 15,
+            lineHeight: 25,
+            color: colors.text,
+        },
 
-    summaryText: {
-        fontSize: 15,
-        lineHeight: 25,
-        color: colors.text,
-    },
+        centerContainer: {
+            flex: 1,
+            alignItems: "center",
+            justifyContent:
+                "center",
+            paddingHorizontal: 30,
+        },
 
-    emptyContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: 30,
-    },
+        loadingText: {
+            marginTop: 12,
+            fontSize: 15,
+            color: colors.gray,
+        },
 
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 8,
-    },
+        emptyTitle: {
+            fontSize: 20,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: 8,
+            textAlign: "center",
+        },
 
-    emptyText: {
-        fontSize: 15,
-        color: colors.gray,
-        textAlign: "center",
-    },
-});
+        emptyText: {
+            fontSize: 15,
+            color: colors.gray,
+            textAlign: "center",
+            lineHeight: 22,
+        },
+
+        retryButton: {
+            marginTop: 18,
+            backgroundColor:
+                colors.primary,
+            paddingHorizontal: 20,
+            paddingVertical: 11,
+            borderRadius: 10,
+        },
+
+        retryText: {
+            color: colors.white,
+            fontSize: 14,
+            fontWeight: "700",
+        },
+    });
