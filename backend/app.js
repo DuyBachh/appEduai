@@ -6,7 +6,7 @@ const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
 const documentRoutes = require("./routes/documentRoutes");
 const summaryRoutes = require("./routes/summaryRoutes");
-
+const chatRoutes = require("./routes/chatRoutes");
 const {
     errorMiddleware,
 } = require("./middleware/errorMiddleware");
@@ -51,6 +51,11 @@ app.use(
 app.use(
     "/api/summaries",
     summaryRoutes
+);
+
+app.use(
+    "/api/chat",
+    chatRoutes
 );
 
 // 404
