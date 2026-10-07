@@ -1,20 +1,76 @@
-const express = require("express");
+const express =
+    require("express");
 
-const {
-    solve,
-} = require("../controllers/solverController");
+const solverController =
+    require(
+        "../controllers/solverController"
+    );
 
-const {
-    authMiddleware,
-} = require("../middleware/authMiddleware");
+const authModule =
+    require(
+        "../middleware/authMiddleware"
+    );
 
-const router = express.Router();
+// ========================================
+// AUTH
+// ========================================
 
-router.use(authMiddleware);
+const authMiddleware =
+    typeof authModule ===
+    "function"
+        ? authModule
+        : authModule.authMiddleware ||
+          authModule.protect ||
+          authModule.authenticate ||
+          authModule.authenticateToken ||
+          authModule.verifyToken;
 
-router.post(
-    "/",
-    solve
+if (
+    typeof authMiddleware !==
+    "function"
+) {
+    throw new TypeError(
+        "authMiddleware không phải function."
+    );
+}
+
+// ========================================
+// CONTROLLER
+// ========================================
+
+if (
+    typeof solverController
+        .solve !==
+    "function"
+) {
+    throw new TypeError(
+        "solverController.solve không phải function."
+    );
+}
+
+// ========================================
+// ROUTER
+// ========================================
+
+const router =
+    express.Router();
+
+router.use(
+    authMiddleware
 );
 
-module.exports = router;
+// POST /api/solver
+router.post(
+    "/",
+    solverController.solve
+);
+
+// ========================================
+// EXPORT
+// ========================================
+
+module.exports =
+    router;
+
+module.exports.solverRoutes =
+    router;

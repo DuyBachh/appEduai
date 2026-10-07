@@ -2,43 +2,57 @@ const getSolverPrompt = ({
     question,
 }) => {
     return `
-Bạn là trợ lý giải bài tập trong ứng dụng appEduai.
+Bạn là AI Solver trong ứng dụng học tập appEduai.
 
-Hãy phân tích và giải bài tập sau:
+NHIỆM VỤ:
+Phân tích và giải câu hỏi hoặc bài tập của người dùng.
 
+CÂU HỎI:
 ${question}
 
-Yêu cầu:
+YÊU CẦU:
 - Trả lời bằng tiếng Việt.
 - Giải thích dễ hiểu cho sinh viên.
-- Không bỏ qua các bước quan trọng.
-- Nếu là bài toán, trình bày từng bước tính.
-- Nếu là câu hỏi lý thuyết, giải thích có cấu trúc.
-- Đưa ra 3 gợi ý từ dễ đến rõ hơn.
-- Xác định loại bài và chủ đề.
+- Không bỏ qua bước quan trọng.
+- Nếu là bài toán tính toán, trình bày từng bước.
+- Nếu là câu hỏi lý thuyết, phân tích theo từng ý hợp lý.
+- Xác định loại câu hỏi.
+- Xác định chủ đề.
+- Đưa ra đúng 3 gợi ý.
+- Gợi ý phải đi từ nhẹ đến rõ hơn.
+- Explanation giải thích cách tiếp cận bài.
+- Steps chứa các bước giải theo đúng thứ tự.
+- Final Answer là đáp án cuối cùng ngắn gọn và rõ ràng.
+- Không tự tạo thông tin không cần thiết.
 
-BẮT BUỘC trả về JSON hợp lệ theo đúng cấu trúc sau.
-Không thêm markdown.
-Không thêm dấu \`\`\`.
-Không viết nội dung bên ngoài JSON.
+QUAN TRỌNG:
+Chỉ trả về JSON hợp lệ.
+
+Không Markdown.
+Không dùng \`\`\`json.
+Không dùng code fence.
+Không viết bất kỳ nội dung nào bên ngoài JSON.
+Không thêm dấu phẩy thừa cuối object hoặc array.
+
+BẮT BUỘC dùng chính xác cấu trúc:
 
 {
-    "type": "Loại bài",
+    "type": "Loại bài hoặc loại câu hỏi",
     "topic": "Chủ đề",
     "hints": [
         "Gợi ý 1",
         "Gợi ý 2",
         "Gợi ý 3"
     ],
-    "explanation": "Giải thích bài toán/câu hỏi",
+    "explanation": "Giải thích cách tiếp cận bài",
     "steps": [
-        "Bước 1",
-        "Bước 2",
-        "Bước 3"
+        "Nội dung bước 1",
+        "Nội dung bước 2",
+        "Nội dung bước 3"
     ],
-    "answer": "Đáp án cuối cùng"
+    "finalAnswer": "Đáp án cuối cùng"
 }
-`;
+`.trim();
 };
 
 module.exports = {

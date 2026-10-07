@@ -1,32 +1,71 @@
+const solverService =
+    require(
+        "../services/solverService"
+    );
+
+// ========================================
+// VERIFY SERVICE
+// ========================================
+
+if (
+    typeof solverService
+        .solveQuestion !==
+    "function"
+) {
+    throw new TypeError(
+        "solverService.solveQuestion không phải function."
+    );
+}
+
 const {
     solveQuestion,
-} = require("../services/solverService");
+} = solverService;
 
-const solve = async (
-    req,
-    res,
-    next
-) => {
-    try {
-        const {
-            question,
-        } = req.body;
+// ========================================
+// SOLVE
+// ========================================
 
-        const result =
-            await solveQuestion({
+const solve =
+    async (
+        req,
+        res,
+        next
+    ) => {
+        try {
+            const {
                 question,
-            });
+            } =
+                req.body || {};
 
-        res.status(200).json({
-            success: true,
-            message:
-                "Giải bài tập thành công.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+            const result =
+                await solveQuestion(
+                    {
+                        question,
+                    }
+                );
+
+            return res
+                .status(200)
+                .json({
+                    success:
+                        true,
+
+                    message:
+                        "Giải bài tập thành công.",
+
+                    data:
+                        result,
+                });
+        } catch (error) {
+            return next(
+                error
+            );
+        }
+    };
+
+// ========================================
+// EXPORT
+// ========================================
 
 module.exports = {
     solve,

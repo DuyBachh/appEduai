@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, {
+    useRef,
+    useState,
+} from "react";
+
 import {
     View,
     Text,
@@ -6,332 +10,1147 @@ import {
     TouchableOpacity,
     TextInput,
     ScrollView,
-    Image,
     ActivityIndicator,
     Keyboard,
     KeyboardAvoidingView,
     Platform,
+    Image,
 } from "react-native";
+
 import * as ImagePicker from "expo-image-picker";
+
+import {
+    File,
+    UploadType,
+} from "expo-file-system";
 
 import colors from "../../styles/colors";
 
+import {
+    API_BASE_URL,
+    apiRequest,
+} from "../../services/api";
+
+import {
+    getToken,
+    removeToken,
+} from "../../services/tokenStorage";
+
+// ========================================
+// SUPPORTED IMAGE TYPES
+// ========================================
+
+const SUPPORTED_MIME_TYPES =
+    new Set([
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+    ]);
+
+// ========================================
+// MIME TYPE
+// ========================================
+
+const getMimeTypeFromUri = (
+    uri = ""
+) => {
+    const cleanUri =
+        String(uri)
+            .split("?")[0]
+            .toLowerCase();
+
+    if (
+        cleanUri.endsWith(
+            ".png"
+        )
+    ) {
+        return "image/png";
+    }
+
+    if (
+        cleanUri.endsWith(
+            ".webp"
+        )
+    ) {
+        return "image/webp";
+    }
+
+    if (
+        cleanUri.endsWith(
+            ".heic"
+        )
+    ) {
+        return "image/heic";
+    }
+
+    if (
+        cleanUri.endsWith(
+            ".heif"
+        )
+    ) {
+        return "image/heif";
+    }
+
+    return "image/jpeg";
+};
+
+// ========================================
+// EXTENSION
+// ========================================
+
+const getExtensionFromMimeType = (
+    mimeType
+) => {
+    switch (
+        mimeType
+    ) {
+        case "image/png":
+            return "png";
+
+        case "image/webp":
+            return "webp";
+
+        case "image/heic":
+            return "heic";
+
+        case "image/heif":
+            return "heif";
+
+        default:
+            return "jpg";
+    }
+};
+
+// ========================================
+// SCREEN
+// ========================================
+
 export default function SolverScreen() {
-    const [question, setQuestion] = useState("");
-    const [imageUri, setImageUri] = useState(null);
+    const scrollRef =
+        useRef(null);
 
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [
+        question,
+        setQuestion,
+    ] = useState("");
 
-    const [result, setResult] = useState(null);
-    const [hintIndex, setHintIndex] = useState(0);
+    const [
+        selectedImage,
+        setSelectedImage,
+    ] = useState(null);
 
-    const [followUp, setFollowUp] = useState("");
-    const [followUpAnswer, setFollowUpAnswer] = useState("");
+    const [
+        solverLoading,
+        setSolverLoading,
+    ] = useState(false);
 
-    // =========================
-    // UPLOAD IMAGE
-    // =========================
+    const [
+        ocrLoading,
+        setOcrLoading,
+    ] = useState(false);
 
-    const handlePickImage = async () => {
-        try {
-            // Đóng keyboard trước khi mở thư viện ảnh
+    const [
+        error,
+        setError,
+    ] = useState("");
+
+    const [
+        result,
+        setResult,
+    ] = useState(null);
+
+    const [
+        hintIndex,
+        setHintIndex,
+    ] = useState(0);
+
+    const loading =
+        solverLoading ||
+        ocrLoading;
+
+    // ========================================
+    // PICK IMAGE
+    // ========================================
+
+    const handlePickImage =
+        async () => {
+            if (
+                loading
+            ) {
+                return;
+            }
+
+            try {
+                Keyboard.dismiss();
+
+                setError("");
+
+                const permission =
+                    await ImagePicker
+                        .requestMediaLibraryPermissionsAsync();
+
+                if (
+                    !permission
+                        .granted
+                ) {
+                    setError(
+                        "Ứng dụng cần quyền truy cập thư viện ảnh."
+                    );
+
+                    return;
+                }
+
+                const pickerResult =
+                    await ImagePicker
+                        .launchImageLibraryAsync(
+                            {
+                                mediaTypes:
+                                    [
+                                        "images",
+                                    ],
+
+                                allowsEditing:
+                                    false,
+
+                                quality:
+                                    0.9,
+                            }
+                        );
+
+                if (
+                    pickerResult.canceled
+                ) {
+                    return;
+                }
+
+                const asset =
+                    pickerResult
+                        .assets?.[0];
+
+                if (
+                    !asset?.uri
+                ) {
+                    setError(
+                        "Không thể lấy hình ảnh."
+                    );
+
+                    return;
+                }
+
+                const mimeType =
+                    asset.mimeType ||
+                    getMimeTypeFromUri(
+                        asset.uri
+                    );
+
+                if (
+                    !SUPPORTED_MIME_TYPES.has(
+                        mimeType
+                    )
+                ) {
+                    setError(
+                        "Định dạng ảnh không được hỗ trợ."
+                    );
+
+                    return;
+                }
+
+                const fileName =
+                    asset.fileName ||
+                    `solver-${Date.now()}.${getExtensionFromMimeType(
+                        mimeType
+                    )}`;
+
+                setSelectedImage(
+                    {
+                        uri:
+                            asset.uri,
+
+                        name:
+                            fileName,
+
+                        mimeType,
+                    }
+                );
+
+                setResult(
+                    null
+                );
+
+                setHintIndex(
+                    0
+                );
+
+                console.log(
+                    "SOLVER IMAGE SELECTED:",
+                    fileName
+                );
+            } catch (
+                requestError
+            ) {
+                console.log(
+                    "SOLVER IMAGE ERROR:",
+                    requestError.message
+                );
+
+                setError(
+                    "Không thể chọn ảnh bài toán."
+                );
+            }
+        };
+
+    // ========================================
+    // REMOVE IMAGE
+    // ========================================
+
+    const handleRemoveImage =
+        () => {
+            if (
+                loading
+            ) {
+                return;
+            }
+
+            setSelectedImage(
+                null
+            );
+
+            setError("");
+        };
+
+    // ========================================
+    // OCR IMAGE
+    // ========================================
+
+    const handleOCRImage =
+        async () => {
+            if (
+                !selectedImage
+                    ?.uri
+            ) {
+                setError(
+                    "Vui lòng chọn ảnh bài toán trước."
+                );
+
+                return;
+            }
+
+            if (
+                loading
+            ) {
+                return;
+            }
+
+            try {
+                setOcrLoading(
+                    true
+                );
+
+                setError("");
+
+                // ========================================
+                // TOKEN
+                // ========================================
+
+                const token =
+                    await getToken();
+
+                if (!token) {
+                    throw new Error(
+                        "Bạn chưa đăng nhập."
+                    );
+                }
+
+                // ========================================
+                // FILE
+                // ========================================
+
+                const uploadFile =
+                    new File(
+                        selectedImage.uri
+                    );
+
+                console.log(
+                    "SOLVER OCR FILE EXISTS:",
+                    uploadFile.exists
+                );
+
+                console.log(
+                    "SOLVER OCR FILE SIZE:",
+                    uploadFile.size
+                );
+
+                if (
+                    !uploadFile.exists
+                ) {
+                    throw new Error(
+                        "Không tìm thấy file ảnh."
+                    );
+                }
+
+                if (
+                    uploadFile.size >
+                    10 *
+                        1024 *
+                        1024
+                ) {
+                    throw new Error(
+                        "Ảnh không được vượt quá 10 MB."
+                    );
+                }
+
+                // ========================================
+                // UPLOAD OCR
+                // ========================================
+
+                const uploadTask =
+                    uploadFile
+                        .createUploadTask(
+                            `${API_BASE_URL}/ocr`,
+                            {
+                                httpMethod:
+                                    "POST",
+
+                                uploadType:
+                                    UploadType.MULTIPART,
+
+                                fieldName:
+                                    "image",
+
+                                mimeType:
+                                    selectedImage.mimeType,
+
+                                parameters:
+                                    {
+                                        originalName:
+                                            selectedImage.name,
+                                    },
+
+                                headers:
+                                    {
+                                        Authorization:
+                                            `Bearer ${token}`,
+                                    },
+                            }
+                        );
+
+                console.log(
+                    "SOLVER OCR START:",
+                    selectedImage.name
+                );
+
+                const uploadResponse =
+                    await uploadTask
+                        .uploadAsync();
+
+                console.log(
+                    "SOLVER OCR STATUS:",
+                    uploadResponse.status
+                );
+
+                // ========================================
+                // PARSE RESPONSE
+                // ========================================
+
+                let responseData =
+                    {};
+
+                try {
+                    responseData =
+                        uploadResponse
+                            .body
+                            ? JSON.parse(
+                                  uploadResponse.body
+                              )
+                            : {};
+                } catch {
+                    throw new Error(
+                        "Server không trả về JSON hợp lệ."
+                    );
+                }
+
+                // ========================================
+                // AUTH
+                // ========================================
+
+                if (
+                    uploadResponse
+                        .status ===
+                    401
+                ) {
+                    await removeToken();
+
+                    throw new Error(
+                        responseData
+                            ?.message ||
+                            "Phiên đăng nhập đã hết hạn."
+                    );
+                }
+
+                // ========================================
+                // API ERROR
+                // ========================================
+
+                if (
+                    uploadResponse
+                        .status <
+                        200 ||
+                    uploadResponse
+                        .status >=
+                        300
+                ) {
+                    throw new Error(
+                        responseData
+                            ?.message ||
+                            `OCR thất bại (${uploadResponse.status}).`
+                    );
+                }
+
+                // ========================================
+                // EXTRACT TEXT
+                // ========================================
+
+                const extractedText =
+                    responseData
+                        ?.data
+                        ?.extractedText;
+
+                if (
+                    !extractedText ||
+                    !String(
+                        extractedText
+                    ).trim()
+                ) {
+                    throw new Error(
+                        "Không nhận diện được đề bài trong ảnh."
+                    );
+                }
+
+                const text =
+                    String(
+                        extractedText
+                    ).trim();
+
+                // ========================================
+                // PUT OCR INTO QUESTION
+                // ========================================
+
+                setQuestion(
+                    text
+                );
+
+                setResult(
+                    null
+                );
+
+                setHintIndex(
+                    0
+                );
+
+                console.log(
+                    "SOLVER OCR SUCCESS:",
+                    text.length,
+                    "characters"
+                );
+            } catch (
+                requestError
+            ) {
+                console.log(
+                    "SOLVER OCR ERROR:",
+                    requestError.message
+                );
+
+                setError(
+                    requestError.message ||
+                        "Không thể OCR ảnh bài toán."
+                );
+            } finally {
+                setOcrLoading(
+                    false
+                );
+            }
+        };
+
+    // ========================================
+    // SOLVE
+    // ========================================
+
+    const handleSolve =
+        async () => {
             Keyboard.dismiss();
 
-            // Chờ iOS đóng keyboard hoàn toàn
-            await new Promise((resolve) => {
-                setTimeout(resolve, 300);
-            });
+            const trimmedQuestion =
+                question.trim();
 
-            setError("");
-
-            const permission =
-                await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-            if (!permission.granted) {
+            if (
+                !trimmedQuestion
+            ) {
                 setError(
-                    "Ứng dụng cần quyền truy cập thư viện ảnh."
+                    "Vui lòng nhập câu hỏi hoặc OCR ảnh bài toán trước."
                 );
+
                 return;
             }
 
-            const pickerResult =
-                await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ["images"],
-                    allowsEditing: true,
-                    quality: 0.8,
-                });
-
-            if (pickerResult.canceled) {
+            if (
+                loading
+            ) {
                 return;
             }
 
-            const selectedImage = pickerResult.assets?.[0];
+            try {
+                setSolverLoading(
+                    true
+                );
 
-            if (!selectedImage?.uri) {
-                setError("Không thể lấy hình ảnh.");
-                return;
+                setError("");
+
+                setResult(
+                    null
+                );
+
+                setHintIndex(
+                    0
+                );
+
+                console.log(
+                    "SOLVER QUESTION:",
+                    trimmedQuestion
+                );
+
+                const response =
+                    await apiRequest(
+                        "/solver",
+                        {
+                            method:
+                                "POST",
+
+                            body:
+                                JSON.stringify(
+                                    {
+                                        question:
+                                            trimmedQuestion,
+                                    }
+                                ),
+                        }
+                    );
+
+                const data =
+                    response?.data;
+
+                if (
+                    !data
+                ) {
+                    throw new Error(
+                        "Backend không trả về kết quả."
+                    );
+                }
+
+                const normalizedResult =
+                    {
+                        question:
+                            data.question ||
+                            trimmedQuestion,
+
+                        type:
+                            data.type ||
+                            "Không xác định",
+
+                        topic:
+                            data.topic ||
+                            "Không xác định",
+
+                        hints:
+                            Array.isArray(
+                                data.hints
+                            )
+                                ? data.hints
+                                : [],
+
+                        explanation:
+                            data.explanation ||
+                            "",
+
+                        steps:
+                            Array.isArray(
+                                data.steps
+                            )
+                                ? data.steps
+                                : [],
+
+                        finalAnswer:
+                            data.finalAnswer ||
+                            data.answer ||
+                            "",
+                    };
+
+                setResult(
+                    normalizedResult
+                );
+
+                console.log(
+                    "SOLVER SUCCESS:",
+                    normalizedResult.type,
+                    "-",
+                    normalizedResult.topic
+                );
+
+                setTimeout(
+                    () => {
+                        scrollRef.current
+                            ?.scrollToEnd(
+                                {
+                                    animated:
+                                        true,
+                                }
+                            );
+                    },
+                    150
+                );
+            } catch (
+                requestError
+            ) {
+                console.log(
+                    "SOLVER ERROR:",
+                    requestError.message
+                );
+
+                setError(
+                    requestError.message ||
+                        "Không thể giải bài tập."
+                );
+            } finally {
+                setSolverLoading(
+                    false
+                );
             }
+        };
 
-            setImageUri(selectedImage.uri);
-            setError("");
-        } catch (err) {
-            setError("Không thể chọn hình ảnh.");
-        }
-    };
-
-    // =========================
-    // ANALYZE
-    // =========================
-
-    const handleAnalyze = async () => {
-        // Đóng keyboard
-        Keyboard.dismiss();
-
-        if (!question.trim() && !imageUri) {
-            setError(
-                "Vui lòng nhập bài toán hoặc tải ảnh bài toán."
-            );
-            return;
-        }
-
-        setLoading(true);
-        setError("");
-        setResult(null);
-        setHintIndex(0);
-        setFollowUpAnswer("");
-
-        try {
-            // Mock AI
-            await new Promise((resolve) => {
-                setTimeout(resolve, 1500);
-            });
-
-            setResult({
-                problemType: "Bài toán tính toán",
-
-                topic: "Đại số",
-
-                hints: [
-                    "Xác định các dữ kiện đã cho trong đề bài.",
-                    "Xác định công thức hoặc phương pháp cần sử dụng.",
-                    "Thay các giá trị đã biết vào công thức và thực hiện phép tính.",
-                ],
-
-                explanation:
-                    "Trước tiên, cần xác định dữ kiện và yêu cầu của bài toán. " +
-                    "Sau đó lựa chọn công thức phù hợp và thực hiện các bước tính toán theo thứ tự.",
-
-                fullSolution:
-                    "Bước 1: Xác định dữ kiện của bài toán.\n\n" +
-                    "Bước 2: Xác định công thức cần sử dụng.\n\n" +
-                    "Bước 3: Thay các giá trị vào công thức.\n\n" +
-                    "Bước 4: Thực hiện phép tính.\n\n" +
-                    "Bước 5: Kiểm tra lại kết quả và đưa ra đáp án.",
-
-                answer:
-                    "Đây là kết quả mô phỏng của AI Solver. " +
-                    "Khi kết nối AI API thật, hệ thống sẽ phân tích bài toán thực tế và tạo lời giải tương ứng.",
-            });
-        } catch (err) {
-            setError("Không thể phân tích bài toán.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // =========================
+    // ========================================
     // NEXT HINT
-    // =========================
+    // ========================================
 
-    const handleNextHint = () => {
-        if (!result) {
-            return;
-        }
+    const handleNextHint =
+        () => {
+            if (
+                !result ||
+                !Array.isArray(
+                    result.hints
+                )
+            ) {
+                return;
+            }
 
-        if (hintIndex < result.hints.length - 1) {
-            setHintIndex((current) => current + 1);
-        }
-    };
+            if (
+                hintIndex <
+                result.hints.length -
+                    1
+            ) {
+                setHintIndex(
+                    (
+                        current
+                    ) =>
+                        current +
+                        1
+                );
+            }
+        };
 
-    // =========================
-    // FOLLOW UP
-    // =========================
+    // ========================================
+    // RESET
+    // ========================================
 
-    const handleFollowUp = async () => {
-        Keyboard.dismiss();
+    const handleReset =
+        () => {
+            Keyboard.dismiss();
 
-        if (!followUp.trim()) {
-            setError("Vui lòng nhập câu hỏi.");
-            return;
-        }
+            setQuestion("");
 
-        setLoading(true);
-        setError("");
-
-        try {
-            await new Promise((resolve) => {
-                setTimeout(resolve, 1000);
-            });
-
-            setFollowUpAnswer(
-                "AI đã nhận được câu hỏi phụ của bạn.\n\n" +
-                    "Đây là câu trả lời mô phỏng. Khi kết nối AI API thật, " +
-                    "hệ thống sẽ sử dụng nội dung bài toán và lời giải trước đó " +
-                    "để tạo câu trả lời phù hợp."
+            setSelectedImage(
+                null
             );
 
-            setFollowUp("");
-        } catch (err) {
-            setError("Không thể xử lý câu hỏi.");
-        } finally {
-            setLoading(false);
-        }
-    };
+            setResult(
+                null
+            );
 
-    // =========================
-    // RESET
-    // =========================
+            setError("");
 
-    const handleReset = () => {
-        Keyboard.dismiss();
+            setHintIndex(
+                0
+            );
+        };
 
-        setQuestion("");
-        setImageUri(null);
-        setResult(null);
-        setError("");
-        setHintIndex(0);
-        setFollowUp("");
-        setFollowUpAnswer("");
-    };
+    // ========================================
+    // UI
+    // ========================================
 
     return (
         <KeyboardAvoidingView
-            style={styles.keyboardContainer}
+            style={
+                styles.keyboardContainer
+            }
             behavior={
-                Platform.OS === "ios"
+                Platform.OS ===
+                "ios"
                     ? "padding"
                     : undefined
             }
-            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+            keyboardVerticalOffset={
+                Platform.OS ===
+                "ios"
+                    ? 70
+                    : 0
+            }
         >
             <ScrollView
-                style={styles.container}
-                contentContainerStyle={styles.content}
+                ref={
+                    scrollRef
+                }
+                style={
+                    styles.container
+                }
+                contentContainerStyle={
+                    styles.content
+                }
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode={
-                    Platform.OS === "ios"
+                    Platform.OS ===
+                    "ios"
                         ? "interactive"
                         : "on-drag"
                 }
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={
+                    false
+                }
             >
                 {/* HEADER */}
 
-                <Text style={styles.title}>
+                <Text
+                    style={
+                        styles.title
+                    }
+                >
                     AI Solver
                 </Text>
 
-                <Text style={styles.subtitle}>
-                    Nhập hoặc tải ảnh bài toán để AI phân tích
+                <Text
+                    style={
+                        styles.subtitle
+                    }
+                >
+                    Nhập bài tập hoặc chọn ảnh để AI phân tích và giải từng bước
                 </Text>
 
                 {/* QUESTION */}
 
-                <View style={styles.card}>
-                    <Text style={styles.sectionTitle}>
-                        Bài toán
+                <View
+                    style={
+                        styles.card
+                    }
+                >
+                    <Text
+                        style={
+                            styles.sectionTitle
+                        }
+                    >
+                        Bài tập
                     </Text>
 
                     <TextInput
-                        style={styles.questionInput}
-                        value={question}
-                        onChangeText={setQuestion}
-                        placeholder="Nhập nội dung bài toán..."
-                        placeholderTextColor={colors.gray}
+                        style={
+                            styles.questionInput
+                        }
+                        value={
+                            question
+                        }
+                        onChangeText={(
+                            value
+                        ) => {
+                            setQuestion(
+                                value
+                            );
+
+                            if (
+                                error
+                            ) {
+                                setError("");
+                            }
+                        }}
+                        placeholder="Ví dụ: Giải phương trình x² - 5x + 6 = 0"
+                        placeholderTextColor={
+                            colors.gray
+                        }
                         multiline
+                        maxLength={
+                            6000
+                        }
+                        editable={
+                            !loading
+                        }
                         textAlignVertical="top"
-                        returnKeyType="default"
                     />
+
+                    <Text
+                        style={
+                            styles.characterCount
+                        }
+                    >
+                        {
+                            question.length
+                        }
+                        /6000
+                    </Text>
 
                     {/* IMAGE PICKER */}
 
                     <TouchableOpacity
-                        style={styles.imageButton}
-                        onPress={handlePickImage}
-                        disabled={loading}
-                        activeOpacity={0.7}
+                        style={
+                            styles.imageButton
+                        }
+                        onPress={
+                            handlePickImage
+                        }
+                        disabled={
+                            loading
+                        }
                     >
-                        <Text style={styles.imageButtonText}>
-                            🖼️ Tải ảnh bài toán
+                        <Text
+                            style={
+                                styles.imageButtonText
+                            }
+                        >
+                            🖼️ Chọn ảnh bài toán
                         </Text>
                     </TouchableOpacity>
 
                     {/* IMAGE PREVIEW */}
 
-                    {imageUri ? (
-                        <View style={styles.imageContainer}>
+                    {selectedImage ? (
+                        <View
+                            style={
+                                styles.imageContainer
+                            }
+                        >
                             <Image
                                 source={{
-                                    uri: imageUri,
+                                    uri:
+                                        selectedImage.uri,
                                 }}
-                                style={styles.previewImage}
+                                style={
+                                    styles.previewImage
+                                }
                                 resizeMode="contain"
                             />
 
-                            <TouchableOpacity
-                                onPress={() =>
-                                    setImageUri(null)
+                            <Text
+                                style={
+                                    styles.imageName
+                                }
+                                numberOfLines={
+                                    1
                                 }
                             >
-                                <Text
-                                    style={
-                                        styles.removeText
+                                {
+                                    selectedImage.name
+                                }
+                            </Text>
+
+                            <View
+                                style={
+                                    styles.imageActionRow
+                                }
+                            >
+                                <TouchableOpacity
+                                    style={[
+                                        styles.ocrButton,
+
+                                        loading &&
+                                            styles.disabledButton,
+                                    ]}
+                                    onPress={
+                                        handleOCRImage
+                                    }
+                                    disabled={
+                                        loading
                                     }
                                 >
-                                    Xóa ảnh
-                                </Text>
-                            </TouchableOpacity>
+                                    {ocrLoading ? (
+                                        <View
+                                            style={
+                                                styles.loadingRow
+                                            }
+                                        >
+                                            <ActivityIndicator
+                                                size="small"
+                                                color={
+                                                    colors.white
+                                                }
+                                            />
+
+                                            <Text
+                                                style={
+                                                    styles.ocrButtonText
+                                                }
+                                            >
+                                                Đang đọc đề...
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <Text
+                                            style={
+                                                styles.ocrButtonText
+                                            }
+                                        >
+                                            Đọc đề từ ảnh
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={
+                                        styles.removeImageButton
+                                    }
+                                    onPress={
+                                        handleRemoveImage
+                                    }
+                                    disabled={
+                                        loading
+                                    }
+                                >
+                                    <Text
+                                        style={
+                                            styles.removeImageText
+                                        }
+                                    >
+                                        Xóa ảnh
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : null}
+
+                    {/* OCR INFO */}
+
+                    {selectedImage &&
+                    question.trim() ? (
+                        <View
+                            style={
+                                styles.ocrInfoBox
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.ocrInfoText
+                                }
+                            >
+                                Nội dung OCR đã được đưa vào ô bài tập. Bạn có thể chỉnh sửa trước khi giải.
+                            </Text>
                         </View>
                     ) : null}
 
                     {/* ERROR */}
 
                     {error ? (
-                        <View style={styles.errorBox}>
-                            <Text style={styles.errorText}>
-                                {error}
+                        <View
+                            style={
+                                styles.errorBox
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.errorText
+                                }
+                            >
+                                {
+                                    error
+                                }
                             </Text>
                         </View>
                     ) : null}
 
-                    {/* ANALYZE */}
+                    {/* SOLVE */}
 
                     <TouchableOpacity
                         style={[
-                            styles.analyzeButton,
+                            styles.solveButton,
+
                             loading &&
-                                styles.disabledAnalyzeButton,
+                                styles.disabledButton,
                         ]}
-                        onPress={handleAnalyze}
-                        disabled={loading}
-                        activeOpacity={0.8}
+                        onPress={
+                            handleSolve
+                        }
+                        disabled={
+                            loading
+                        }
                     >
-                        {loading ? (
-                            <ActivityIndicator
-                                color={colors.white}
-                            />
+                        {solverLoading ? (
+                            <View
+                                style={
+                                    styles.loadingRow
+                                }
+                            >
+                                <ActivityIndicator
+                                    color={
+                                        colors.white
+                                    }
+                                />
+
+                                <Text
+                                    style={
+                                        styles.solveButtonText
+                                    }
+                                >
+                                    AI đang giải...
+                                </Text>
+                            </View>
                         ) : (
                             <Text
                                 style={
-                                    styles.analyzeButtonText
+                                    styles.solveButtonText
                                 }
                             >
-                                🔍 Phân tích bài toán
+                                Giải bài tập
                             </Text>
                         )}
                     </TouchableOpacity>
                 </View>
+
+                {/* LOADING */}
+
+                {solverLoading ? (
+                    <View
+                        style={
+                            styles.loadingCard
+                        }
+                    >
+                        <ActivityIndicator
+                            size="large"
+                            color={
+                                colors.primary
+                            }
+                        />
+
+                        <Text
+                            style={
+                                styles.loadingTitle
+                            }
+                        >
+                            AI đang phân tích bài tập
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.loadingDescription
+                            }
+                        >
+                            Bài phức tạp có thể cần thêm thời gian xử lý.
+                        </Text>
+                    </View>
+                ) : null}
 
                 {/* RESULT */}
 
@@ -339,13 +1158,29 @@ export default function SolverScreen() {
                     <>
                         {/* TYPE + TOPIC */}
 
-                        <View style={styles.card}>
-                            <Text style={styles.sectionTitle}>
-                                Phân tích bài toán
+                        <View
+                            style={
+                                styles.card
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.sectionTitle
+                                }
+                            >
+                                Phân tích bài tập
                             </Text>
 
-                            <View style={styles.infoRow}>
-                                <View style={styles.infoItem}>
+                            <View
+                                style={
+                                    styles.infoRow
+                                }
+                            >
+                                <View
+                                    style={
+                                        styles.infoItem
+                                    }
+                                >
                                     <Text
                                         style={
                                             styles.infoLabel
@@ -360,12 +1195,16 @@ export default function SolverScreen() {
                                         }
                                     >
                                         {
-                                            result.problemType
+                                            result.type
                                         }
                                     </Text>
                                 </View>
 
-                                <View style={styles.infoItem}>
+                                <View
+                                    style={
+                                        styles.infoItem
+                                    }
+                                >
                                     <Text
                                         style={
                                             styles.infoLabel
@@ -379,7 +1218,9 @@ export default function SolverScreen() {
                                             styles.infoValue
                                         }
                                     >
-                                        {result.topic}
+                                        {
+                                            result.topic
+                                        }
                                     </Text>
                                 </View>
                             </View>
@@ -387,159 +1228,214 @@ export default function SolverScreen() {
 
                         {/* HINT */}
 
-                        <View style={styles.card}>
-                            <Text style={styles.sectionTitle}>
-                                💡 Gợi ý
-                            </Text>
-
-                            <View style={styles.hintBox}>
-                                <Text
-                                    style={
-                                        styles.hintNumber
-                                    }
-                                >
-                                    Gợi ý {hintIndex + 1}
-                                </Text>
-
-                                <Text
-                                    style={styles.hintText}
-                                >
-                                    {
-                                        result.hints[
-                                            hintIndex
-                                        ]
-                                    }
-                                </Text>
-                            </View>
-
-                            <TouchableOpacity
-                                style={[
-                                    styles.secondaryButton,
-                                    hintIndex >=
-                                        result.hints
-                                            .length -
-                                            1 &&
-                                        styles.disabledButton,
-                                ]}
-                                onPress={handleNextHint}
-                                disabled={
-                                    hintIndex >=
-                                    result.hints.length - 1
+                        {result.hints.length >
+                        0 ? (
+                            <View
+                                style={
+                                    styles.card
                                 }
                             >
                                 <Text
                                     style={
-                                        styles.secondaryButtonText
+                                        styles.sectionTitle
                                     }
                                 >
-                                    Gợi ý tiếp theo
+                                    💡 Gợi ý
                                 </Text>
-                            </TouchableOpacity>
-                        </View>
+
+                                <View
+                                    style={
+                                        styles.hintBox
+                                    }
+                                >
+                                    <Text
+                                        style={
+                                            styles.hintNumber
+                                        }
+                                    >
+                                        Gợi ý{" "}
+                                        {hintIndex +
+                                            1}
+                                        /
+                                        {
+                                            result
+                                                .hints
+                                                .length
+                                        }
+                                    </Text>
+
+                                    <Text
+                                        style={
+                                            styles.hintText
+                                        }
+                                    >
+                                        {
+                                            result
+                                                .hints[
+                                                hintIndex
+                                            ]
+                                        }
+                                    </Text>
+                                </View>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.secondaryButton,
+
+                                        hintIndex >=
+                                            result
+                                                .hints
+                                                .length -
+                                                1 &&
+                                            styles.disabledSecondaryButton,
+                                    ]}
+                                    onPress={
+                                        handleNextHint
+                                    }
+                                    disabled={
+                                        hintIndex >=
+                                        result
+                                            .hints
+                                            .length -
+                                            1
+                                    }
+                                >
+                                    <Text
+                                        style={
+                                            styles.secondaryButtonText
+                                        }
+                                    >
+                                        {hintIndex >=
+                                        result
+                                            .hints
+                                            .length -
+                                            1
+                                            ? "Đã xem hết gợi ý"
+                                            : "Gợi ý tiếp theo"}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : null}
 
                         {/* EXPLANATION */}
 
-                        <View style={styles.card}>
-                            <Text style={styles.sectionTitle}>
+                        <View
+                            style={
+                                styles.card
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.sectionTitle
+                                }
+                            >
                                 📖 Giải thích
                             </Text>
 
-                            <Text style={styles.bodyText}>
-                                {result.explanation}
+                            <Text
+                                selectable
+                                style={
+                                    styles.bodyText
+                                }
+                            >
+                                {
+                                    result.explanation
+                                }
                             </Text>
                         </View>
 
-                        {/* FULL SOLUTION */}
+                        {/* STEPS */}
 
-                        <View style={styles.card}>
-                            <Text style={styles.sectionTitle}>
-                                📝 Lời giải đầy đủ
+                        <View
+                            style={
+                                styles.card
+                            }
+                        >
+                            <Text
+                                style={
+                                    styles.sectionTitle
+                                }
+                            >
+                                📝 Các bước giải
                             </Text>
 
-                            <Text style={styles.solutionText}>
-                                {result.fullSolution}
-                            </Text>
+                            {result.steps.map(
+                                (
+                                    step,
+                                    index
+                                ) => (
+                                    <View
+                                        key={`${index}-${step}`}
+                                        style={
+                                            styles.stepBox
+                                        }
+                                    >
+                                        <View
+                                            style={
+                                                styles.stepNumber
+                                            }
+                                        >
+                                            <Text
+                                                style={
+                                                    styles.stepNumberText
+                                                }
+                                            >
+                                                {index +
+                                                    1}
+                                            </Text>
+                                        </View>
+
+                                        <Text
+                                            selectable
+                                            style={
+                                                styles.stepText
+                                            }
+                                        >
+                                            {
+                                                step
+                                            }
+                                        </Text>
+                                    </View>
+                                )
+                            )}
                         </View>
 
                         {/* ANSWER */}
 
-                        <View style={styles.answerBox}>
-                            <Text style={styles.answerTitle}>
-                                ✅ Kết quả
-                            </Text>
-
-                            <Text style={styles.bodyText}>
-                                {result.answer}
-                            </Text>
-                        </View>
-
-                        {/* FOLLOW UP */}
-
-                        <View style={styles.card}>
-                            <Text style={styles.sectionTitle}>
-                                💬 Hỏi thêm
-                            </Text>
-
-                            <TextInput
+                        <View
+                            style={
+                                styles.answerBox
+                            }
+                        >
+                            <Text
                                 style={
-                                    styles.followUpInput
+                                    styles.answerTitle
                                 }
-                                value={followUp}
-                                onChangeText={setFollowUp}
-                                placeholder="Bạn muốn hỏi thêm điều gì?"
-                                placeholderTextColor={
-                                    colors.gray
-                                }
-                                multiline
-                                textAlignVertical="top"
-                            />
-
-                            <TouchableOpacity
-                                style={
-                                    styles.secondaryButton
-                                }
-                                onPress={handleFollowUp}
-                                disabled={loading}
                             >
-                                <Text
-                                    style={
-                                        styles.secondaryButtonText
-                                    }
-                                >
-                                    Gửi câu hỏi
-                                </Text>
-                            </TouchableOpacity>
+                                ✅ Đáp án cuối cùng
+                            </Text>
 
-                            {followUpAnswer ? (
-                                <View
-                                    style={
-                                        styles.followUpAnswer
-                                    }
-                                >
-                                    <Text
-                                        style={
-                                            styles.followUpAnswerTitle
-                                        }
-                                    >
-                                        🤖 AI trả lời
-                                    </Text>
-
-                                    <Text
-                                        style={
-                                            styles.bodyText
-                                        }
-                                    >
-                                        {followUpAnswer}
-                                    </Text>
-                                </View>
-                            ) : null}
+                            <Text
+                                selectable
+                                style={
+                                    styles.answerText
+                                }
+                            >
+                                {
+                                    result.finalAnswer
+                                }
+                            </Text>
                         </View>
 
                         {/* RESET */}
 
                         <TouchableOpacity
-                            style={styles.resetButton}
-                            onPress={handleReset}
+                            style={
+                                styles.resetButton
+                            }
+                            onPress={
+                                handleReset
+                            }
                         >
                             <Text
                                 style={
@@ -556,267 +1452,641 @@ export default function SolverScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    keyboardContainer: {
-        flex: 1,
-    },
+// ========================================
+// STYLES
+// ========================================
 
-    container: {
-        flex: 1,
-        backgroundColor: colors.background,
-    },
+const styles =
+    StyleSheet.create({
+        keyboardContainer: {
+            flex: 1,
+        },
 
-    content: {
-        paddingTop: 45,
-        paddingHorizontal: 20,
-        paddingBottom: 50,
-    },
+        container: {
+            flex: 1,
 
-    title: {
-        fontSize: 28,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 6,
-    },
+            backgroundColor:
+                colors.background,
+        },
 
-    subtitle: {
-        fontSize: 15,
-        lineHeight: 22,
-        color: colors.gray,
-        marginBottom: 20,
-    },
+        content: {
+            paddingTop: 45,
 
-    card: {
-        backgroundColor: colors.white,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 16,
-    },
+            paddingHorizontal:
+                20,
 
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 12,
-    },
+            paddingBottom:
+                80,
+        },
 
-    questionInput: {
-        minHeight: 150,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 12,
-        padding: 14,
-        fontSize: 15,
-        lineHeight: 22,
-        color: colors.text,
-        backgroundColor: "#FAFAFA",
-        marginBottom: 12,
-    },
+        title: {
+            fontSize: 28,
 
-    imageButton: {
-        borderWidth: 1,
-        borderColor: colors.primary,
-        borderRadius: 12,
-        paddingVertical: 13,
-        alignItems: "center",
-        marginBottom: 12,
-    },
+            fontWeight:
+                "700",
 
-    imageButtonText: {
-        color: colors.primary,
-        fontSize: 15,
-        fontWeight: "600",
-    },
+            color:
+                colors.text,
 
-    imageContainer: {
-        marginBottom: 12,
-        alignItems: "center",
-    },
+            marginBottom: 6,
+        },
 
-    previewImage: {
-        width: "100%",
-        height: 220,
-        borderRadius: 12,
-        backgroundColor: "#F3F4F6",
-        marginBottom: 8,
-    },
+        subtitle: {
+            fontSize: 15,
 
-    removeText: {
-        color: colors.error,
-        fontSize: 14,
-        fontWeight: "600",
-    },
+            lineHeight: 22,
 
-    errorBox: {
-        backgroundColor: "#FEF2F2",
-        borderWidth: 1,
-        borderColor: "#FECACA",
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 12,
-    },
+            color:
+                colors.gray,
 
-    errorText: {
-        color: colors.error,
-        fontSize: 14,
-        lineHeight: 20,
-    },
+            marginBottom:
+                20,
+        },
 
-    analyzeButton: {
-        backgroundColor: colors.primary,
-        borderRadius: 12,
-        paddingVertical: 14,
-        alignItems: "center",
-        minHeight: 48,
-        justifyContent: "center",
-    },
+        card: {
+            backgroundColor:
+                colors.white,
 
-    disabledAnalyzeButton: {
-        opacity: 0.7,
-    },
+            borderWidth:
+                1,
 
-    analyzeButtonText: {
-        color: colors.white,
-        fontSize: 16,
-        fontWeight: "700",
-    },
+            borderColor:
+                colors.border,
 
-    infoRow: {
-        flexDirection: "row",
-        gap: 12,
-    },
+            borderRadius:
+                16,
 
-    infoItem: {
-        flex: 1,
-        backgroundColor: "#F9FAFB",
-        borderRadius: 12,
-        padding: 14,
-    },
+            padding: 16,
 
-    infoLabel: {
-        fontSize: 13,
-        color: colors.gray,
-        marginBottom: 6,
-    },
+            marginBottom:
+                16,
+        },
 
-    infoValue: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: colors.text,
-        lineHeight: 21,
-    },
+        sectionTitle: {
+            fontSize: 18,
 
-    hintBox: {
-        backgroundColor: "#FFFBEB",
-        borderWidth: 1,
-        borderColor: "#FDE68A",
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 12,
-    },
+            fontWeight:
+                "700",
 
-    hintNumber: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: "#92400E",
-        marginBottom: 6,
-    },
+            color:
+                colors.text,
 
-    hintText: {
-        fontSize: 15,
-        lineHeight: 22,
-        color: colors.text,
-    },
+            marginBottom:
+                12,
+        },
 
-    secondaryButton: {
-        borderWidth: 1,
-        borderColor: colors.primary,
-        borderRadius: 12,
-        paddingVertical: 13,
-        alignItems: "center",
-    },
+        questionInput: {
+            minHeight: 150,
 
-    secondaryButtonText: {
-        color: colors.primary,
-        fontSize: 15,
-        fontWeight: "700",
-    },
+            borderWidth:
+                1,
 
-    disabledButton: {
-        opacity: 0.4,
-    },
+            borderColor:
+                colors.border,
 
-    bodyText: {
-        fontSize: 15,
-        lineHeight: 24,
-        color: colors.text,
-    },
+            borderRadius:
+                12,
 
-    solutionText: {
-        fontSize: 15,
-        lineHeight: 25,
-        color: colors.text,
-        backgroundColor: "#F9FAFB",
-        borderRadius: 12,
-        padding: 14,
-    },
+            padding: 14,
 
-    answerBox: {
-        backgroundColor: "#EEF2FF",
-        borderWidth: 1,
-        borderColor: "#C7D2FE",
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 16,
-    },
+            fontSize: 15,
 
-    answerTitle: {
-        fontSize: 17,
-        fontWeight: "700",
-        color: colors.primary,
-        marginBottom: 8,
-    },
+            lineHeight: 22,
 
-    followUpInput: {
-        minHeight: 100,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 12,
-        padding: 14,
-        fontSize: 15,
-        color: colors.text,
-        marginBottom: 12,
-        textAlignVertical: "top",
-    },
+            color:
+                colors.text,
 
-    followUpAnswer: {
-        marginTop: 14,
-        padding: 14,
-        backgroundColor: "#F9FAFB",
-        borderRadius: 12,
-    },
+            backgroundColor:
+                "#FAFAFA",
+        },
 
-    followUpAnswerTitle: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: colors.primary,
-        marginBottom: 8,
-    },
+        characterCount: {
+            marginTop: 6,
 
-    resetButton: {
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 12,
-        paddingVertical: 14,
-        alignItems: "center",
-        backgroundColor: colors.white,
-    },
+            marginBottom:
+                12,
 
-    resetButtonText: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: colors.text,
-    },
-});
+            textAlign:
+                "right",
+
+            fontSize: 12,
+
+            color:
+                colors.gray,
+        },
+
+        imageButton: {
+            borderWidth:
+                1,
+
+            borderColor:
+                colors.primary,
+
+            borderRadius:
+                12,
+
+            paddingVertical:
+                13,
+
+            alignItems:
+                "center",
+
+            marginBottom:
+                12,
+        },
+
+        imageButtonText: {
+            color:
+                colors.primary,
+
+            fontSize: 15,
+
+            fontWeight:
+                "700",
+        },
+
+        imageContainer: {
+            marginBottom:
+                12,
+        },
+
+        previewImage: {
+            width:
+                "100%",
+
+            height: 240,
+
+            borderRadius:
+                12,
+
+            backgroundColor:
+                "#F3F4F6",
+        },
+
+        imageName: {
+            marginTop: 8,
+
+            fontSize: 12,
+
+            color:
+                colors.gray,
+        },
+
+        imageActionRow: {
+            marginTop: 12,
+
+            gap: 10,
+        },
+
+        ocrButton: {
+            minHeight: 46,
+
+            backgroundColor:
+                colors.primary,
+
+            borderRadius:
+                10,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        ocrButtonText: {
+            color:
+                colors.white,
+
+            fontSize: 15,
+
+            fontWeight:
+                "700",
+
+            marginLeft: 7,
+        },
+
+        removeImageButton: {
+            minHeight: 44,
+
+            borderWidth:
+                1,
+
+            borderColor:
+                "#FECACA",
+
+            borderRadius:
+                10,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        removeImageText: {
+            color:
+                colors.error,
+
+            fontSize: 14,
+
+            fontWeight:
+                "600",
+        },
+
+        ocrInfoBox: {
+            backgroundColor:
+                "#EEF2FF",
+
+            borderRadius:
+                10,
+
+            padding: 12,
+
+            marginBottom:
+                12,
+        },
+
+        ocrInfoText: {
+            fontSize: 13,
+
+            lineHeight: 19,
+
+            color:
+                colors.primary,
+        },
+
+        errorBox: {
+            backgroundColor:
+                "#FEF2F2",
+
+            borderWidth:
+                1,
+
+            borderColor:
+                "#FECACA",
+
+            borderRadius:
+                12,
+
+            padding: 12,
+
+            marginBottom:
+                12,
+        },
+
+        errorText: {
+            color:
+                colors.error,
+
+            fontSize: 14,
+
+            lineHeight: 20,
+        },
+
+        solveButton: {
+            minHeight: 48,
+
+            backgroundColor:
+                colors.primary,
+
+            borderRadius:
+                12,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        solveButtonText: {
+            color:
+                colors.white,
+
+            fontSize: 16,
+
+            fontWeight:
+                "700",
+
+            marginLeft: 8,
+        },
+
+        disabledButton: {
+            opacity: 0.65,
+        },
+
+        loadingRow: {
+            flexDirection:
+                "row",
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+        },
+
+        loadingCard: {
+            backgroundColor:
+                colors.white,
+
+            borderWidth:
+                1,
+
+            borderColor:
+                colors.border,
+
+            borderRadius:
+                16,
+
+            padding: 24,
+
+            alignItems:
+                "center",
+
+            marginBottom:
+                16,
+        },
+
+        loadingTitle: {
+            marginTop: 12,
+
+            fontSize: 16,
+
+            fontWeight:
+                "700",
+
+            color:
+                colors.text,
+        },
+
+        loadingDescription: {
+            marginTop: 6,
+
+            fontSize: 13,
+
+            lineHeight: 19,
+
+            color:
+                colors.gray,
+
+            textAlign:
+                "center",
+        },
+
+        infoRow: {
+            flexDirection:
+                "row",
+
+            gap: 12,
+        },
+
+        infoItem: {
+            flex: 1,
+
+            backgroundColor:
+                "#F9FAFB",
+
+            borderRadius:
+                12,
+
+            padding: 14,
+        },
+
+        infoLabel: {
+            fontSize: 13,
+
+            color:
+                colors.gray,
+
+            marginBottom: 6,
+        },
+
+        infoValue: {
+            fontSize: 15,
+
+            fontWeight:
+                "600",
+
+            color:
+                colors.text,
+
+            lineHeight: 21,
+        },
+
+        hintBox: {
+            backgroundColor:
+                "#FFFBEB",
+
+            borderWidth:
+                1,
+
+            borderColor:
+                "#FDE68A",
+
+            borderRadius:
+                12,
+
+            padding: 14,
+
+            marginBottom:
+                12,
+        },
+
+        hintNumber: {
+            fontSize: 13,
+
+            fontWeight:
+                "700",
+
+            color:
+                "#92400E",
+
+            marginBottom: 6,
+        },
+
+        hintText: {
+            fontSize: 15,
+
+            lineHeight: 22,
+
+            color:
+                colors.text,
+        },
+
+        secondaryButton: {
+            borderWidth:
+                1,
+
+            borderColor:
+                colors.primary,
+
+            borderRadius:
+                12,
+
+            paddingVertical:
+                13,
+
+            alignItems:
+                "center",
+        },
+
+        secondaryButtonText: {
+            color:
+                colors.primary,
+
+            fontSize: 15,
+
+            fontWeight:
+                "700",
+        },
+
+        disabledSecondaryButton: {
+            opacity: 0.4,
+        },
+
+        bodyText: {
+            fontSize: 15,
+
+            lineHeight: 24,
+
+            color:
+                colors.text,
+        },
+
+        stepBox: {
+            flexDirection:
+                "row",
+
+            alignItems:
+                "flex-start",
+
+            backgroundColor:
+                "#F9FAFB",
+
+            borderRadius:
+                12,
+
+            padding: 13,
+
+            marginBottom:
+                10,
+        },
+
+        stepNumber: {
+            width: 28,
+
+            height: 28,
+
+            borderRadius:
+                14,
+
+            backgroundColor:
+                colors.primary,
+
+            alignItems:
+                "center",
+
+            justifyContent:
+                "center",
+
+            marginRight:
+                10,
+        },
+
+        stepNumberText: {
+            color:
+                colors.white,
+
+            fontSize: 13,
+
+            fontWeight:
+                "700",
+        },
+
+        stepText: {
+            flex: 1,
+
+            fontSize: 15,
+
+            lineHeight: 23,
+
+            color:
+                colors.text,
+        },
+
+        answerBox: {
+            backgroundColor:
+                "#EEF2FF",
+
+            borderWidth:
+                1,
+
+            borderColor:
+                "#C7D2FE",
+
+            borderRadius:
+                16,
+
+            padding: 16,
+
+            marginBottom:
+                16,
+        },
+
+        answerTitle: {
+            fontSize: 17,
+
+            fontWeight:
+                "700",
+
+            color:
+                colors.primary,
+
+            marginBottom: 8,
+        },
+
+        answerText: {
+            fontSize: 16,
+
+            lineHeight: 24,
+
+            fontWeight:
+                "600",
+
+            color:
+                colors.text,
+        },
+
+        resetButton: {
+            borderWidth:
+                1,
+
+            borderColor:
+                colors.border,
+
+            borderRadius:
+                12,
+
+            paddingVertical:
+                14,
+
+            alignItems:
+                "center",
+
+            backgroundColor:
+                colors.white,
+        },
+
+        resetButtonText: {
+            fontSize: 15,
+
+            fontWeight:
+                "700",
+
+            color:
+                colors.text,
+        },
+    });
