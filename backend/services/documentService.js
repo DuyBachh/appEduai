@@ -8,6 +8,10 @@ const {
     client,
 } = require("../config/database");
 
+const {
+    extractTextFromFile,
+} = require("./extractTextService");
+
 const getDocumentsCollection = () => {
     const db = client.db("appEduai");
 
@@ -35,6 +39,7 @@ const createDocumentService = async ({
     uri = "",
     subject = "",
     topic = "",
+    extractedText = "",
 }) => {
     validateObjectId(
         userId,
@@ -52,7 +57,61 @@ const createDocumentService = async ({
         uri,
         subject,
         topic,
+        extractedText,
     });
+
+    await documentsCollection.insertOne(
+        document
+    );
+
+    return document;
+};
+
+const uploadDocumentService = async ({
+    userId,
+    file,
+    subject = "",
+    topic = "",
+}) => {
+    validateObjectId(
+        userId,
+        "User ID không hợp lệ."
+    );
+
+    if (!file) {
+        const error = new Error(
+            "Vui lòng chọn file để upload."
+        );
+
+        error.statusCode = 400;
+
+        throw error;
+    }
+
+    const extension = file.originalname
+        .split(".")
+        .pop()
+        .toLowerCase();
+
+    const extractedText =
+        await extractTextFromFile({
+            filePath: file.path,
+            fileType: extension,
+        });
+
+    const document = createDocument({
+        userId,
+        name: file.originalname,
+        fileType: extension,
+        size: file.size,
+        uri: `/uploads/${file.filename}`,
+        subject,
+        topic,
+        extractedText,
+    });
+
+    const documentsCollection =
+        getDocumentsCollection();
 
     await documentsCollection.insertOne(
         document
@@ -217,52 +276,6 @@ const deleteDocument = async ({
     };
 };
 
-const uploadDocumentService = async ({
-    userId,
-    file,
-    subject = "",
-    topic = "",
-}) => {
-    validateObjectId(
-        userId,
-        "User ID không hợp lệ."
-    );
-
-    if (!file) {
-        const error = new Error(
-            "Vui lòng chọn file để upload."
-        );
-
-        error.statusCode = 400;
-
-        throw error;
-    }
-
-    const extension = file.originalname
-        .split(".")
-        .pop()
-        .toLowerCase();
-
-    const document =
-        createDocument({
-            userId,
-            name: file.originalname,
-            fileType: extension,
-            size: file.size,
-            uri: `/uploads/${file.filename}`,
-            subject,
-            topic,
-        });
-
-    const documentsCollection =
-        getDocumentsCollection();
-
-    await documentsCollection.insertOne(
-        document
-    );
-
-    return document;
-};
 module.exports = {
     createDocumentService,
     uploadDocumentService,

@@ -8,20 +8,18 @@ const createDocument = ({
     uri = "",
     subject = "",
     topic = "",
+    extractedText = "",
 }) => {
     return {
         _id: new ObjectId(),
-
         userId: new ObjectId(userId),
-
         name,
         fileType,
         size,
         uri,
-
         subject,
         topic,
-
+        extractedText,
         createdAt: new Date(),
         updatedAt: new Date(),
     };
