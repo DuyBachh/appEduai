@@ -1,46 +1,142 @@
-const express = require("express");
+const express =
+    require("express");
 
-const {
-    createSummary,
-    getSummaryHistory,
-    getSummaryDetail,
-    deleteSummary,
-} = require("../controllers/summaryController");
+const summaryController =
+    require(
+        "../controllers/summaryController"
+    );
 
-const {
-    authMiddleware,
-} = require("../middleware/authMiddleware");
+const authModule =
+    require(
+        "../middleware/authMiddleware"
+    );
+
+// ========================================
+// AUTH MIDDLEWARE
+// ========================================
+
+const authMiddleware =
+    typeof authModule ===
+    "function"
+        ? authModule
+        : authModule.authMiddleware ||
+          authModule.protect ||
+          authModule.authenticate ||
+          authModule.authenticateToken ||
+          authModule.verifyToken;
+
+// ========================================
+// VALIDATE AUTH
+// ========================================
+
+if (
+    typeof authMiddleware !==
+    "function"
+) {
+    throw new TypeError(
+        "authMiddleware không phải function. Kiểm tra middleware/authMiddleware.js."
+    );
+}
+
+// ========================================
+// VALIDATE CONTROLLER
+// ========================================
+
+const requiredControllers = [
+    "createSummary",
+    "getSummariesByDocument",
+    "getSummaryDetail",
+    "deleteSummary",
+];
+
+for (
+    const controllerName of
+    requiredControllers
+) {
+    if (
+        typeof summaryController[
+            controllerName
+        ] !==
+        "function"
+    ) {
+        throw new TypeError(
+            `summaryController.${controllerName} không phải function.`
+        );
+    }
+}
+
+// ========================================
+// ROUTER
+// ========================================
 
 const router =
     express.Router();
+
+// ========================================
+// AUTH
+// ========================================
 
 router.use(
     authMiddleware
 );
 
-// Tạo summary
+// ========================================
+// CREATE SUMMARY
+//
+// POST
+// /api/summaries/documents/:documentId
+// ========================================
+
 router.post(
     "/documents/:documentId",
-    createSummary
+    summaryController.createSummary
 );
 
-// Lịch sử summary theo tài liệu
+// ========================================
+// HISTORY
+//
+// GET
+// /api/summaries/documents/:documentId
+// ========================================
+
 router.get(
     "/documents/:documentId",
-    getSummaryHistory
+    summaryController.getSummariesByDocument
 );
 
-// Chi tiết một summary
+// ========================================
+// DETAIL
+//
+// GET
+// /api/summaries/:summaryId
+// ========================================
+
 router.get(
     "/:summaryId",
-    getSummaryDetail
+    summaryController.getSummaryDetail
 );
 
-// Xóa một summary
+// ========================================
+// DELETE
+//
+// DELETE
+// /api/summaries/:summaryId
+// ========================================
+
 router.delete(
     "/:summaryId",
-    deleteSummary
+    summaryController.deleteSummary
 );
 
+// ========================================
+// EXPORT
+// ========================================
+
+// Kiểu chuẩn
 module.exports =
+    router;
+
+// Đồng thời hỗ trợ:
+// const { summaryRoutes } = require(...)
+module.exports.summaryRoutes =
     router;

@@ -1,135 +1,186 @@
 import {
-    fetch,
-} from "expo/fetch";
-
-import {
     getToken,
-    removeToken,
 } from "./tokenStorage";
 
-const API_BASE_URL =
+// ========================================
+// API URL
+// ========================================
+
+export const API_BASE_URL =
     "http://192.168.1.204:5000/api";
 
-const apiRequest = async (
-    endpoint,
-    options = {}
+// ========================================
+// FORM DATA CHECK
+// ========================================
+
+const isFormData = (
+    value
 ) => {
-    try {
-        const {
-            skipAuth = false,
-            ...fetchOptions
-        } = options;
+    return (
+        typeof FormData !==
+            "undefined" &&
+        value instanceof
+            FormData
+    );
+};
 
+// ========================================
+// API REQUEST
+// ========================================
+
+export const apiRequest =
+    async (
+        endpoint,
+        options = {}
+    ) => {
         const token =
-            skipAuth
-                ? null
-                : await getToken();
-
-        const isFormData =
-            fetchOptions.body instanceof
-            FormData;
-
-        const headers = {
-            ...(!isFormData && {
-                "Content-Type":
-                    "application/json",
-            }),
-
-            ...(token && {
-                Authorization:
-                    `Bearer ${token}`,
-            }),
-
-            ...fetchOptions.headers,
-        };
+            await getToken();
 
         const url =
-            `${API_BASE_URL}${endpoint}`;
+            endpoint.startsWith(
+                "http"
+            )
+                ? endpoint
+                : `${API_BASE_URL}${endpoint}`;
+
+        const headers = {
+            Accept:
+                "application/json",
+
+            ...(options.headers ||
+                {}),
+        };
+
+        // ========================================
+        // CONTENT TYPE
+        // ========================================
+
+        if (
+            options.body &&
+            !isFormData(
+                options.body
+            ) &&
+            !headers[
+                "Content-Type"
+            ]
+        ) {
+            headers[
+                "Content-Type"
+            ] =
+                "application/json";
+        }
+
+        // ========================================
+        // TOKEN
+        // ========================================
+
+        if (token) {
+            headers.Authorization =
+                `Bearer ${token}`;
+        }
 
         console.log(
             "API URL:",
             url
         );
 
-        const response =
-            await fetch(
-                url,
-                {
-                    ...fetchOptions,
-                    headers,
-                }
+        let response;
+
+        // ========================================
+        // REQUEST
+        // ========================================
+
+        try {
+            // Cố ý không dùng
+            // AbortController timeout.
+            //
+            // Summary tài liệu dài
+            // được phép chờ lâu.
+            response =
+                await fetch(
+                    url,
+                    {
+                        ...options,
+
+                        headers,
+                    }
+                );
+        } catch (error) {
+            console.log(
+                "API NETWORK ERROR:",
+                error.message
             );
+
+            const networkError =
+                new Error(
+                    "Không thể kết nối tới backend. Kiểm tra Wi-Fi và địa chỉ IP của máy tính."
+                );
+
+            networkError.cause =
+                error;
+
+            throw networkError;
+        }
 
         console.log(
             "API STATUS:",
             response.status
         );
 
-        const responseText =
+        // ========================================
+        // RESPONSE BODY
+        // ========================================
+
+        const rawText =
             await response.text();
 
-        let data;
+        let result =
+            null;
 
-        try {
-            data =
-                responseText
-                    ? JSON.parse(
-                          responseText
-                      )
-                    : {};
-        } catch {
-            throw new Error(
-                "Server không trả về JSON hợp lệ."
-            );
+        if (rawText) {
+            try {
+                result =
+                    JSON.parse(
+                        rawText
+                    );
+            } catch {
+                result = {
+                    message:
+                        rawText,
+                };
+            }
         }
+
+        // ========================================
+        // ERROR
+        // ========================================
 
         if (
-            response.status === 401
+            !response.ok
         ) {
-            if (!skipAuth) {
-                await removeToken();
-            }
-
             const error =
                 new Error(
-                    data.message ||
-                        "Phiên đăng nhập đã hết hạn."
-                );
-
-            error.status = 401;
-
-            throw error;
-        }
-
-        if (!response.ok) {
-            const error =
-                new Error(
-                    data.message ||
-                        "Đã xảy ra lỗi khi gọi API."
+                    result?.message ||
+                        `API lỗi ${response.status}.`
                 );
 
             error.status =
                 response.status;
 
+            error.data =
+                result;
+
             throw error;
         }
 
-        return data;
-    } catch (error) {
-        if (
-            error.message ===
-            "Network request failed"
-        ) {
-            throw new Error(
-                "Không thể kết nối tới server."
-            );
-        }
+        // ========================================
+        // SUCCESS
+        // ========================================
 
-        throw error;
-    }
-};
-
-export {
-    API_BASE_URL,
-    apiRequest,
-};
+        return (
+            result || {
+                success:
+                    true,
+            }
+        );
+    };

@@ -1,4 +1,6 @@
-const { ObjectId } = require("mongodb");
+const {
+    ObjectId,
+} = require("mongodb");
 
 const createSummary = ({
     userId,
@@ -7,18 +9,41 @@ const createSummary = ({
     type = "medium",
     content = "",
 }) => {
+    const now =
+        new Date();
+
     return {
-        _id: new ObjectId(),
+        _id:
+            new ObjectId(),
 
-        userId: new ObjectId(userId),
-        documentId: new ObjectId(documentId),
+        userId:
+            new ObjectId(
+                userId
+            ),
 
-        title,
+        documentId:
+            new ObjectId(
+                documentId
+            ),
+
+        title:
+            String(
+                title || ""
+            ).trim(),
+
         type,
-        content,
 
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        content:
+            String(
+                content ||
+                    ""
+            ).trim(),
+
+        createdAt:
+            now,
+
+        updatedAt:
+            now,
     };
 };
 

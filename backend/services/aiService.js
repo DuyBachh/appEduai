@@ -3,6 +3,31 @@ const {
 } = require("../config/ai");
 
 // ========================================
+// MODEL CONFIG
+// ========================================
+
+const PRIMARY_MODEL =
+    process.env.GEMINI_PRIMARY_MODEL ||
+    "gemini-3.5-flash-lite";
+
+const FALLBACK_MODEL =
+    process.env.GEMINI_FALLBACK_MODEL ||
+    "gemini-3.8-flash";
+
+const MAX_ATTEMPTS_PER_MODEL =
+    2;
+
+const RETRYABLE_STATUS_CODES =
+    new Set([
+        408,
+        429,
+        500,
+        502,
+        503,
+        504,
+    ]);
+
+// ========================================
 // WAIT
 // ========================================
 
@@ -26,273 +51,467 @@ const wait = (
 const getErrorStatus = (
     error
 ) => {
-    return (
+    const directStatus =
+        error?.statusCode ||
         error?.status ||
         error?.code ||
         error?.error?.code ||
-        error?.response?.status
+        error?.response?.status;
+
+    if (
+        directStatus &&
+        Number.isFinite(
+            Number(
+                directStatus
+            )
+        )
+    ) {
+        return Number(
+            directStatus
+        );
+    }
+
+    const message =
+        String(
+            error?.message ||
+                ""
+        );
+
+    const match =
+        message.match(
+            /"code"\s*:\s*(\d{3})/
+        );
+
+    if (match) {
+        return Number(
+            match[1]
+        );
+    }
+
+    return null;
+};
+
+// ========================================
+// THINKING LEVEL
+// ========================================
+
+const getThinkingLevel = (
+    model
+) => {
+    // Gemini 3.8 / 3.7
+    // không hỗ trợ minimal
+    if (
+        /gemini-3\.(8|7)-flash/i.test(
+            model
+        )
+    ) {
+        return "low";
+    }
+
+    // Gemini 3.5 Flash-Lite
+    return "minimal";
+};
+
+// ========================================
+// RETRYABLE ERROR
+// ========================================
+
+const isRetryableError = (
+    error
+) => {
+    const status =
+        getErrorStatus(
+            error
+        );
+
+    const message =
+        String(
+            error?.message ||
+                ""
+        ).toLowerCase();
+
+    return (
+        RETRYABLE_STATUS_CODES.has(
+            status
+        ) ||
+        error?.name ===
+            "AbortError" ||
+        error?.name ===
+            "TimeoutError" ||
+        message.includes(
+            "deadline_exceeded"
+        ) ||
+        message.includes(
+            "deadline exceeded"
+        ) ||
+        message.includes(
+            "deadline expired"
+        ) ||
+        message.includes(
+            "timeout"
+        ) ||
+        message.includes(
+            "timed out"
+        ) ||
+        message.includes(
+            "high demand"
+        ) ||
+        message.includes(
+            "unavailable"
+        )
     );
+};
+
+// ========================================
+// CALL GEMINI MODEL
+// ========================================
+
+const callModel = async ({
+    model,
+    prompt,
+    instructions,
+    maxOutputTokens,
+}) => {
+    const startedAt =
+        Date.now();
+
+    console.log(
+        `GEMINI MODEL: ${model}`
+    );
+
+    const response =
+        await ai.models.generateContent({
+            model,
+
+            contents:
+                prompt.trim(),
+
+            config: {
+                maxOutputTokens,
+
+                thinkingConfig: {
+                    thinkingLevel:
+                        getThinkingLevel(
+                            model
+                        ),
+                },
+
+                httpOptions: {
+                    // Không cho SDK
+                    // tự retry ngầm.
+                    // Service sẽ tự retry.
+                    retryOptions: {
+                        attempts: 1,
+                    },
+
+                    // KHÔNG đặt timeout.
+                    // Cho phép AI chạy lâu.
+                },
+
+                ...(instructions
+                    ? {
+                          systemInstruction:
+                              instructions,
+                      }
+                    : {}),
+            },
+        });
+
+    const duration =
+        (
+            (Date.now() -
+                startedAt) /
+            1000
+        ).toFixed(2);
+
+    console.log(
+        `GEMINI API TIME (${model}):`,
+        `${duration} giây`
+    );
+
+    const text =
+        response?.text
+            ? response.text.trim()
+            : "";
+
+    if (!text) {
+        const error =
+            new Error(
+                "AI không trả về nội dung."
+            );
+
+        error.statusCode =
+            502;
+
+        throw error;
+    }
+
+    return text;
+};
+
+// ========================================
+// CREATE FINAL ERROR
+// ========================================
+
+const createFinalError = (
+    error
+) => {
+    const status =
+        getErrorStatus(
+            error
+        );
+
+    if (status === 429) {
+        const finalError =
+            new Error(
+                "Dịch vụ AI đang bị giới hạn lượt gọi. Vui lòng thử lại sau."
+            );
+
+        finalError.statusCode =
+            429;
+
+        return finalError;
+    }
+
+    if (status === 503) {
+        const finalError =
+            new Error(
+                "Dịch vụ AI đang quá tải. Vui lòng thử lại sau."
+            );
+
+        finalError.statusCode =
+            503;
+
+        return finalError;
+    }
+
+    if (status === 504) {
+        const finalError =
+            new Error(
+                "AI phản hồi quá lâu. Vui lòng thử lại."
+            );
+
+        finalError.statusCode =
+            504;
+
+        return finalError;
+    }
+
+    if (
+        status === 400 ||
+        status === 401 ||
+        status === 403 ||
+        status === 404
+    ) {
+        const finalError =
+            new Error(
+                "Yêu cầu tới dịch vụ AI không hợp lệ hoặc không được phép."
+            );
+
+        finalError.statusCode =
+            502;
+
+        return finalError;
+    }
+
+    const finalError =
+        new Error(
+            "Không thể kết nối dịch vụ AI. Vui lòng thử lại sau."
+        );
+
+    finalError.statusCode =
+        502;
+
+    return finalError;
+};
+
+// ========================================
+// RUN MODEL WITH RETRY
+// ========================================
+
+const runWithRetry = async ({
+    model,
+    prompt,
+    instructions,
+    maxOutputTokens,
+}) => {
+    let lastError =
+        null;
+
+    for (
+        let attempt = 1;
+        attempt <=
+        MAX_ATTEMPTS_PER_MODEL;
+        attempt += 1
+    ) {
+        try {
+            console.log(
+                `GEMINI ATTEMPT: ${attempt}/${MAX_ATTEMPTS_PER_MODEL}`
+            );
+
+            return await callModel({
+                model,
+                prompt,
+                instructions,
+                maxOutputTokens,
+            });
+        } catch (error) {
+            lastError =
+                error;
+
+            const status =
+                getErrorStatus(
+                    error
+                );
+
+            console.log(
+                `GEMINI ERROR (${model}) [${status || "unknown"}]:`,
+                error.message
+            );
+
+            if (
+                !isRetryableError(
+                    error
+                )
+            ) {
+                throw error;
+            }
+
+            if (
+                attempt <
+                MAX_ATTEMPTS_PER_MODEL
+            ) {
+                const delay =
+                    1500 *
+                    2 **
+                        (attempt -
+                            1);
+
+                console.log(
+                    "GEMINI RETRY AFTER:",
+                    `${(
+                        delay /
+                        1000
+                    ).toFixed(
+                        1
+                    )} giây`
+                );
+
+                await wait(
+                    delay
+                );
+            }
+        }
+    }
+
+    throw lastError;
 };
 
 // ========================================
 // GENERATE TEXT
 // ========================================
 
-const generateText =
-    async ({
-        prompt,
-        instructions = "",
-        maxOutputTokens = 1024,
-    }) => {
-        // ========================================
-        // VALIDATE
-        // ========================================
+const generateText = async ({
+    prompt,
+    instructions = "",
+    maxOutputTokens = 1024,
+}) => {
+    if (
+        !prompt ||
+        !String(
+            prompt
+        ).trim()
+    ) {
+        const error =
+            new Error(
+                "Prompt không được để trống."
+            );
 
-        if (
-            !prompt ||
-            !prompt.trim()
-        ) {
-            const error =
-                new Error(
-                    "Prompt không được để trống."
-                );
+        error.statusCode =
+            400;
 
-            error.statusCode =
-                400;
+        throw error;
+    }
 
-            throw error;
+    const models = [
+        ...new Set(
+            [
+                PRIMARY_MODEL,
+                FALLBACK_MODEL,
+            ].filter(
+                Boolean
+            )
+        ),
+    ];
+
+    let lastError =
+        null;
+
+    for (
+        let index = 0;
+        index <
+        models.length;
+        index += 1
+    ) {
+        const model =
+            models[index];
+
+        if (index > 0) {
+            console.log(
+                `GEMINI FALLBACK MODEL: ${model}`
+            );
         }
 
-        // Chỉ retry 1 lần khi Gemini 503
-        const maxRetries =
-            1;
+        try {
+            return await runWithRetry(
+                {
+                    model,
 
-        for (
-            let attempt = 0;
-            attempt <= maxRetries;
-            attempt++
-        ) {
-            try {
-                const startTime =
-                    Date.now();
+                    prompt:
+                        String(
+                            prompt
+                        ),
 
-                // ========================================
-                // CALL GEMINI
-                // ========================================
+                    instructions,
 
-                const response =
-                    await ai.models.generateContent({
-                        model:
-                            "gemini-3.5-flash-lite",
+                    maxOutputTokens,
+                }
+            );
+        } catch (error) {
+            lastError =
+                error;
 
-                        contents:
-                            prompt.trim(),
-
-                        config: {
-                            maxOutputTokens,
-
-                            // Ưu tiên phản hồi nhanh
-                            thinkingConfig: {
-                                thinkingLevel:
-                                    "minimal",
-                            },
-
-                            // Tối đa 20 giây
-                            httpOptions: {
-                                timeout:
-                                    20000,
-                            },
-
-                            ...(instructions
-                                ? {
-                                      systemInstruction:
-                                          instructions,
-                                  }
-                                : {}),
-                        },
-                    });
-
-                console.log(
-                    "GEMINI API TIME:",
-                    `${(
-                        (Date.now() -
-                            startTime) /
-                        1000
-                    ).toFixed(2)} giây`
+            const status =
+                getErrorStatus(
+                    error
                 );
 
-                // ========================================
-                // RESPONSE TEXT
-                // ========================================
+            // Nếu quota project bị giới hạn
+            // thì đổi model thường
+            // không giúp được.
+            if (
+                status === 429
+            ) {
+                break;
+            }
 
-                const text =
-                    response?.text
-                        ? response.text.trim()
-                        : "";
-
-                if (!text) {
-                    const error =
-                        new Error(
-                            "AI không trả về nội dung."
-                        );
-
-                    error.statusCode =
-                        502;
-
-                    throw error;
-                }
-
-                return text;
-            } catch (error) {
-                // ========================================
-                // ERROR INFO
-                // ========================================
-
-                const status =
-                    getErrorStatus(
-                        error
-                    );
-
-                const message =
-                    String(
-                        error?.message ||
-                            ""
-                    ).toLowerCase();
-
-                console.log(
-                    "GEMINI ERROR:",
-                    error.message
-                );
-
-                // ========================================
-                // RATE LIMIT - 429
-                // ========================================
-
-                if (
-                    Number(status) ===
-                        429 ||
-                    message.includes(
-                        '"code":429'
-                    )
-                ) {
-                    const quotaError =
-                        new Error(
-                            "Đã đạt giới hạn sử dụng AI. Vui lòng thử lại sau."
-                        );
-
-                    quotaError.statusCode =
-                        429;
-
-                    throw quotaError;
-                }
-
-                // ========================================
-                // DEADLINE / TIMEOUT - 504
-                // ========================================
-
-                if (
-                    Number(status) ===
-                        504 ||
-                    message.includes(
-                        '"code":504'
-                    ) ||
-                    message.includes(
-                        "deadline_exceeded"
-                    ) ||
-                    message.includes(
-                        "deadline exceeded"
-                    ) ||
-                    message.includes(
-                        "deadline expired"
-                    ) ||
-                    message.includes(
-                        "timeout"
-                    ) ||
-                    message.includes(
-                        "timed out"
-                    ) ||
-                    error.name ===
-                        "AbortError" ||
-                    error.name ===
-                        "TimeoutError"
-                ) {
-                    const timeoutError =
-                        new Error(
-                            "AI phản hồi quá lâu. Vui lòng thử lại."
-                        );
-
-                    timeoutError.statusCode =
-                        504;
-
-                    throw timeoutError;
-                }
-
-                // ========================================
-                // GEMINI OVERLOAD - 503
-                // ========================================
-
-                if (
-                    Number(status) ===
-                        503 ||
-                    message.includes(
-                        '"code":503'
-                    )
-                ) {
-                    if (
-                        attempt <
-                        maxRetries
-                    ) {
-                        const delay =
-                            1000;
-
-                        console.log(
-                            `Gemini 503 - thử lại sau ${delay}ms`
-                        );
-
-                        await wait(
-                            delay
-                        );
-
-                        continue;
-                    }
-
-                    const unavailableError =
-                        new Error(
-                            "Dịch vụ AI đang quá tải. Vui lòng thử lại sau."
-                        );
-
-                    unavailableError.statusCode =
-                        503;
-
-                    throw unavailableError;
-                }
-
-                // ========================================
-                // INTERNAL ERROR ALREADY HANDLED
-                // ========================================
-
-                if (
-                    error.statusCode
-                ) {
-                    throw error;
-                }
-
-                // ========================================
-                // OTHER ERROR
-                // ========================================
-
-                const aiError =
-                    new Error(
-                        "Không thể kết nối dịch vụ AI."
-                    );
-
-                aiError.statusCode =
-                    502;
-
-                throw aiError;
+            if (
+                !isRetryableError(
+                    error
+                )
+            ) {
+                break;
             }
         }
-    };
+    }
+
+    throw createFinalError(
+        lastError ||
+            new Error(
+                "AI request failed."
+            )
+    );
+};
 
 module.exports = {
     generateText,

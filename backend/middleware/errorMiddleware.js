@@ -1,16 +1,70 @@
-const errorMiddleware = (err, req, res, next) => {
-    console.error("Backend Error:", err);
+const errorMiddleware = (
+    error,
+    req,
+    res,
+    next
+) => {
+    let statusCode =
+        Number(
+            error?.statusCode ||
+                error?.status ||
+                500
+        );
 
-    const statusCode = err.statusCode || 500;
+    if (
+        !Number.isInteger(
+            statusCode
+        ) ||
+        statusCode < 400 ||
+        statusCode > 599
+    ) {
+        statusCode =
+            500;
+    }
 
-    res.status(statusCode).json({
-        success: false,
-        message:
-            err.message ||
-            "Đã xảy ra lỗi phía server.",
-    });
+    const message =
+        error?.message ||
+        "Đã xảy ra lỗi trên server.";
+
+    console.error(
+        "Backend Error:",
+        error
+    );
+
+    if (
+        res.headersSent
+    ) {
+        return next(
+            error
+        );
+    }
+
+    return res
+        .status(
+            statusCode
+        )
+        .json({
+            success: false,
+
+            message,
+        });
 };
 
-module.exports = {
-    errorMiddleware,
-};
+// ========================================
+// EXPORT
+// ========================================
+
+// Cho phép:
+// const errorMiddleware = require(...)
+module.exports =
+    errorMiddleware;
+
+// Đồng thời cho phép:
+// const { errorMiddleware } = require(...)
+module.exports.errorMiddleware =
+    errorMiddleware;
+
+// Và:
+// const { errorHandler } = require(...)
+module.exports.errorHandler =
+    errorMiddleware;
