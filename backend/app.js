@@ -2,18 +2,33 @@ const express = require("express");
 const path = require("path");
 const cors = require("cors");
 
-const healthRoutes = require("./routes/healthRoutes");
-const authRoutes = require("./routes/authRoutes");
-const documentRoutes = require("./routes/documentRoutes");
-const summaryRoutes = require("./routes/summaryRoutes");
-const chatRoutes = require("./routes/chatRoutes");
+const healthRoutes =
+    require("./routes/healthRoutes");
+
+const authRoutes =
+    require("./routes/authRoutes");
+
+const documentRoutes =
+    require("./routes/documentRoutes");
+
+const summaryRoutes =
+    require("./routes/summaryRoutes");
+
+const chatRoutes =
+    require("./routes/chatRoutes");
+
+const solverRoutes =
+    require("./routes/solverRoutes");
+
+const ocrRoutes =
+    require("./routes/ocrRoutes");
+
 const {
     errorMiddleware,
 } = require("./middleware/errorMiddleware");
 
 const app = express();
 
-// Middleware
 app.use(cors());
 
 app.use(express.json());
@@ -24,15 +39,16 @@ app.use(
     })
 );
 
-// Static uploaded files
 app.use(
     "/uploads",
     express.static(
-        path.join(__dirname, "uploads")
+        path.join(
+            __dirname,
+            "uploads"
+        )
     )
 );
 
-// Routes
 app.use(
     "/api/health",
     healthRoutes
@@ -58,16 +74,28 @@ app.use(
     chatRoutes
 );
 
-// 404
+app.use(
+    "/api/solver",
+    solverRoutes
+);
+
+app.use(
+    "/api/ocr",
+    ocrRoutes
+);
+
 app.use((req, res) => {
-    return res.status(404).json({
-        success: false,
-        message:
-            "API endpoint không tồn tại.",
-    });
+    return res
+        .status(404)
+        .json({
+            success: false,
+            message:
+                "API endpoint không tồn tại.",
+        });
 });
 
-// Global error middleware
-app.use(errorMiddleware);
+app.use(
+    errorMiddleware
+);
 
 module.exports = app;
