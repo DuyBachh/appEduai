@@ -21,33 +21,38 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+// Tạo document metadata
 router.post(
-    "/upload",
-    upload.any(),
-    uploadDocument
+    "/",
+    createDocument
 );
 
+// Upload một file
 router.post(
     "/upload",
     upload.single("file"),
     uploadDocument
 );
 
+// Lấy danh sách document
 router.get(
     "/",
     getDocuments
 );
 
+// Lấy chi tiết document
 router.get(
     "/:id",
     getDocumentById
 );
 
+// Cập nhật document
 router.put(
     "/:id",
     updateDocument
 );
 
+// Xóa document
 router.delete(
     "/:id",
     deleteDocument

@@ -5,6 +5,7 @@ const cors = require("cors");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
 const documentRoutes = require("./routes/documentRoutes");
+const summaryRoutes = require("./routes/summaryRoutes");
 
 const {
     errorMiddleware,
@@ -23,7 +24,7 @@ app.use(
     })
 );
 
-// Cho phép truy cập các file đã upload
+// Static uploaded files
 app.use(
     "/uploads",
     express.static(
@@ -31,7 +32,7 @@ app.use(
     )
 );
 
-// API Routes
+// Routes
 app.use(
     "/api/health",
     healthRoutes
@@ -47,7 +48,12 @@ app.use(
     documentRoutes
 );
 
-// 404 - API không tồn tại
+app.use(
+    "/api/summaries",
+    summaryRoutes
+);
+
+// 404
 app.use((req, res) => {
     return res.status(404).json({
         success: false,
@@ -56,7 +62,7 @@ app.use((req, res) => {
     });
 });
 
-// Global Error Middleware
+// Global error middleware
 app.use(errorMiddleware);
 
 module.exports = app;
