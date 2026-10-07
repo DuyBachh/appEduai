@@ -1,29 +1,55 @@
-const multer = require("multer");
+const multer =
+    require("multer");
+
+// ========================================
+// STORAGE
+// ========================================
 
 const storage =
     multer.memoryStorage();
 
-const allowedMimeTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-];
+// ========================================
+// CONFIG
+// ========================================
+
+const MAX_FILE_SIZE =
+    10 * 1024 * 1024;
+
+const allowedMimeTypes =
+    new Set([
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+    ]);
+
+// ========================================
+// FILE FILTER
+// ========================================
 
 const fileFilter = (
     req,
     file,
     cb
 ) => {
+    const mimeType =
+        String(
+            file?.mimetype || ""
+        ).toLowerCase();
+
     if (
-        !allowedMimeTypes.includes(
-            file.mimetype
+        !allowedMimeTypes.has(
+            mimeType
         )
     ) {
-        const error = new Error(
-            "Chỉ hỗ trợ ảnh JPG, JPEG, PNG và WEBP."
-        );
+        const error =
+            new Error(
+                "Chỉ hỗ trợ ảnh JPG, JPEG, PNG, WEBP, HEIC và HEIF."
+            );
 
-        error.statusCode = 400;
+        error.statusCode =
+            400;
 
         return cb(
             error,
@@ -31,17 +57,33 @@ const fileFilter = (
         );
     }
 
-    cb(null, true);
+    return cb(
+        null,
+        true
+    );
 };
 
-const ocrUpload = multer({
-    storage,
-    fileFilter,
-    limits: {
-        fileSize:
-            10 * 1024 * 1024,
-    },
-});
+// ========================================
+// MULTER
+// ========================================
+
+const ocrUpload =
+    multer({
+        storage,
+
+        fileFilter,
+
+        limits: {
+            fileSize:
+                MAX_FILE_SIZE,
+
+            files: 1,
+        },
+    });
+
+// ========================================
+// EXPORT
+// ========================================
 
 module.exports = {
     ocrUpload,
