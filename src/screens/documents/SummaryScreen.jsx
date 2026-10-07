@@ -1,4 +1,4 @@
-import {
+import React, {
     useState,
 } from "react";
 
@@ -35,11 +35,6 @@ export default function SummaryScreen({
     ] = useState("");
 
     const [
-        generatedType,
-        setGeneratedType,
-    ] = useState("");
-
-    const [
         isLoading,
         setIsLoading,
     ] = useState(false);
@@ -50,7 +45,7 @@ export default function SummaryScreen({
     ] = useState("");
 
     // ========================================
-    // HELPERS
+    // DOCUMENT ID
     // ========================================
 
     const getDocumentId = () => {
@@ -61,65 +56,33 @@ export default function SummaryScreen({
         );
     };
 
+    // ========================================
+    // DOCUMENT NAME
+    // ========================================
+
     const getDocumentName = () => {
         return (
             document?.name ||
+            document?.originalName ||
             "Tài liệu không tên"
         );
     };
 
-    const getTypeLabel = (
-        type
-    ) => {
-        if (type === "short") {
-            return "Ngắn";
-        }
-
-        if (type === "medium") {
-            return "Vừa";
-        }
-
-        if (
-            type === "detailed"
-        ) {
-            return "Chi tiết";
-        }
-
-        return "";
-    };
+    // ========================================
+    // SUMMARY TEXT
+    // ========================================
 
     const extractSummaryText = (
         result
     ) => {
-        const data =
-            result?.data;
-
-        if (
-            typeof data ===
-            "string"
-        ) {
-            return data;
-        }
-
-        const candidates = [
-            data?.summary,
-            data?.summaryText,
-            data?.content,
-            data?.text,
-            result?.summary,
-        ];
-
-        const found =
-            candidates.find(
-                (
-                    value
-                ) =>
-                    typeof value ===
-                        "string" &&
-                    value.trim()
-            );
-
-        return found || "";
+        return (
+            result?.data?.content ||
+            result?.data?.summary ||
+            result?.data?.summaryText ||
+            result?.data?.text ||
+            result?.summary ||
+            ""
+        );
     };
 
     // ========================================
@@ -127,122 +90,142 @@ export default function SummaryScreen({
     // ========================================
 
     const handleCreateSummary =
-    async () => {
-        const documentId =
-            getDocumentId();
+        async () => {
+            const documentId =
+                getDocumentId();
 
-        if (!documentId) {
-            setError(
-                "Không tìm thấy ID tài liệu."
-            );
+            if (!documentId) {
+                setError(
+                    "Không tìm thấy Document ID."
+                );
 
+                return;
+            }
+
+            // Không cho gửi nhiều request cùng lúc
+            if (isLoading) {
+                return;
+            }
+
+            try {
+                setIsLoading(true);
+
+                setError("");
+
+                // Giữ summary cũ nếu có.
+                // Không xóa summary khi đang gọi lại AI.
+
+                console.log(
+                    "SUMMARY DOCUMENT ID:",
+                    documentId
+                );
+
+                console.log(
+                    "SUMMARY TYPE:",
+                    summaryLength
+                );
+
+                console.log(
+                    "SUMMARY START"
+                );
+
+                const startTime =
+                    Date.now();
+
+                const result =
+                    await apiRequest(
+                        `/summaries/documents/${documentId}`,
+                        {
+                            method:
+                                "POST",
+
+                            body:
+                                JSON.stringify(
+                                    {
+                                        type:
+                                            summaryLength,
+                                    }
+                                ),
+                        }
+                    );
+
+                const duration =
+                    (
+                        (Date.now() -
+                            startTime) /
+                        1000
+                    ).toFixed(2);
+
+                console.log(
+                    "SUMMARY TIME:",
+                    `${duration} giây`
+                );
+
+                console.log(
+                    "SUMMARY GENERATE SUCCESS:",
+                    result?.success
+                );
+
+                console.log(
+                    "SUMMARY RESPONSE:",
+                    result?.data
+                );
+
+                const generatedSummary =
+                    extractSummaryText(
+                        result
+                    );
+
+                if (
+                    !generatedSummary
+                ) {
+                    throw new Error(
+                        "Backend không trả về nội dung tóm tắt."
+                    );
+                }
+
+                setSummary(
+                    generatedSummary
+                );
+            } catch (err) {
+                console.log(
+                    "SUMMARY ERROR:",
+                    err.message
+                );
+
+                // apiRequest sẽ lấy message từ backend.
+                // Ví dụ:
+                // "AI phản hồi quá lâu. Vui lòng thử lại."
+                setError(
+                    err.message ||
+                        "Không thể tạo bản tóm tắt. Vui lòng thử lại."
+                );
+            } finally {
+                // Luôn dừng loading dù API thành công hay lỗi 504.
+                setIsLoading(
+                    false
+                );
+            }
+        };
+
+    // ========================================
+    // CHANGE TYPE
+    // ========================================
+
+    const handleChangeLength = (
+        length
+    ) => {
+        if (isLoading) {
             return;
         }
 
-        try {
-            setIsLoading(
-                true
-            );
+        setSummaryLength(
+            length
+        );
 
-            setError("");
-            setSummary("");
+        setError("");
 
-            console.log(
-                "SUMMARY DOCUMENT ID:",
-                documentId
-            );
-
-            console.log(
-                "SUMMARY TYPE:",
-                summaryLength
-            );
-
-            // Bắt đầu đo thời gian
-            const startTime =
-                Date.now();
-
-            console.log(
-                "SUMMARY START"
-            );
-
-            const result =
-                await apiRequest(
-                    `/summaries/documents/${documentId}`,
-                    {
-                        method:
-                            "POST",
-
-                        body:
-                            JSON.stringify(
-                                {
-                                    type:
-                                        summaryLength,
-                                }
-                            ),
-                    }
-                );
-
-            // Kết thúc đo thời gian
-            const endTime =
-                Date.now();
-
-            const duration =
-                (
-                    (endTime -
-                        startTime) /
-                    1000
-                ).toFixed(2);
-
-            console.log(
-                "SUMMARY TIME:",
-                `${duration} giây`
-            );
-
-            console.log(
-                "SUMMARY GENERATE SUCCESS:",
-                result?.success
-            );
-
-            console.log(
-                "SUMMARY RESPONSE:",
-                result?.data
-            );
-
-            const generatedSummary =
-                extractSummaryText(
-                    result
-                );
-
-            if (
-                !generatedSummary
-            ) {
-                throw new Error(
-                    "Backend không trả về nội dung tóm tắt."
-                );
-            }
-
-            setSummary(
-                generatedSummary
-            );
-
-            setGeneratedType(
-                summaryLength
-            );
-        } catch (error) {
-            console.log(
-                "SUMMARY GENERATE ERROR:",
-                error.message
-            );
-
-            setError(
-                error.message ||
-                    "Không thể tạo bản tóm tắt."
-            );
-        } finally {
-            setIsLoading(
-                false
-            );
-        }
+        setSummary("");
     };
 
     // ========================================
@@ -251,11 +234,21 @@ export default function SummaryScreen({
 
     const handleOpenHistory =
         () => {
+            const documentId =
+                getDocumentId();
+
+            if (!documentId) {
+                setError(
+                    "Không tìm thấy Document ID."
+                );
+
+                return;
+            }
+
             navigation.navigate(
                 "SummaryHistory",
                 {
-                    documentId:
-                        getDocumentId(),
+                    documentId,
 
                     documentName:
                         getDocumentName(),
@@ -264,123 +257,26 @@ export default function SummaryScreen({
         };
 
     // ========================================
-    // BUTTON STYLE
+    // TYPE LABEL
     // ========================================
 
-    const getLengthButtonStyle =
-        (
-            length
-        ) => {
-            if (
-                summaryLength ===
-                length
-            ) {
-                return [
-                    styles.lengthButton,
-                    styles.lengthButtonActive,
-                ];
-            }
+    const getTypeLabel = (
+        type
+    ) => {
+        switch (type) {
+            case "short":
+                return "Ngắn";
 
-            return styles.lengthButton;
-        };
+            case "medium":
+                return "Vừa";
 
-    const getLengthTextStyle =
-        (
-            length
-        ) => {
-            if (
-                summaryLength ===
-                length
-            ) {
-                return [
-                    styles.lengthButtonText,
-                    styles.lengthButtonTextActive,
-                ];
-            }
+            case "detailed":
+                return "Chi tiết";
 
-            return styles.lengthButtonText;
-        };
-
-    // ========================================
-    // NO DOCUMENT
-    // ========================================
-
-    if (!document) {
-        return (
-            <View
-                style={
-                    styles.container
-                }
-            >
-                <View
-                    style={
-                        styles.header
-                    }
-                >
-                    <TouchableOpacity
-                        style={
-                            styles.backButton
-                        }
-                        onPress={() =>
-                            navigation.goBack()
-                        }
-                    >
-                        <Text
-                            style={
-                                styles.backText
-                            }
-                        >
-                            ‹
-                        </Text>
-                    </TouchableOpacity>
-
-                    <Text
-                        style={
-                            styles.headerTitle
-                        }
-                    >
-                        AI Tóm tắt
-                    </Text>
-
-                    <View
-                        style={
-                            styles.headerSpace
-                        }
-                    />
-                </View>
-
-                <View
-                    style={
-                        styles.emptyDocumentContainer
-                    }
-                >
-                    <Text
-                        style={
-                            styles.emptyDocumentIcon
-                        }
-                    >
-                        📄
-                    </Text>
-
-                    <Text
-                        style={
-                            styles.emptyDocumentTitle
-                        }
-                    >
-                        Không tìm thấy tài liệu
-                    </Text>
-
-                    <Text
-                        style={
-                            styles.emptyDocumentText
-                        }
-                    >
-                        Vui lòng quay lại và chọn một tài liệu.
-                    </Text>
-                </View>
-            </View>
-        );
-    }
+            default:
+                return "Vừa";
+        }
+    };
 
     // ========================================
     // UI
@@ -405,6 +301,9 @@ export default function SummaryScreen({
                     }
                     onPress={() =>
                         navigation.goBack()
+                    }
+                    disabled={
+                        isLoading
                     }
                 >
                     <Text
@@ -490,23 +389,10 @@ export default function SummaryScreen({
                             {getDocumentName()}
                         </Text>
 
-                        <Text
-                            style={
-                                styles.documentMeta
-                            }
-                        >
-                            {document.fileType
-                                ? document.fileType.toUpperCase()
-                                : "Tài liệu"}
-                        </Text>
-
-                        {document.subject ? (
+                        {document?.subject ? (
                             <Text
                                 style={
-                                    styles.documentSubject
-                                }
-                                numberOfLines={
-                                    1
+                                    styles.documentMeta
                                 }
                             >
                                 {
@@ -514,14 +400,26 @@ export default function SummaryScreen({
                                 }
                             </Text>
                         ) : null}
+
+                        {document?.topic ? (
+                            <Text
+                                style={
+                                    styles.documentMeta
+                                }
+                            >
+                                {
+                                    document.topic
+                                }
+                            </Text>
+                        ) : null}
                     </View>
                 </View>
 
-                {/* OPTIONS */}
+                {/* SETTINGS */}
 
                 <View
                     style={
-                        styles.optionCard
+                        styles.settingCard
                     }
                 >
                     <Text
@@ -532,164 +430,110 @@ export default function SummaryScreen({
                         Độ dài bản tóm tắt
                     </Text>
 
-                    <Text
-                        style={
-                            styles.sectionDescription
-                        }
-                    >
-                        Chọn mức độ chi tiết mà bạn muốn AI tạo.
-                    </Text>
-
                     <View
                         style={
                             styles.lengthContainer
                         }
                     >
                         <TouchableOpacity
-                            style={
-                                getLengthButtonStyle(
+                            style={[
+                                styles.lengthButton,
+
+                                summaryLength ===
+                                    "short" &&
+                                    styles.lengthButtonActive,
+                            ]}
+                            onPress={() =>
+                                handleChangeLength(
                                     "short"
                                 )
                             }
-                            onPress={() => {
-                                setSummaryLength(
-                                    "short"
-                                );
-
-                                setError(
-                                    ""
-                                );
-                            }}
                             disabled={
                                 isLoading
                             }
                         >
                             <Text
-                                style={
-                                    styles.lengthIcon
-                                }
-                            >
-                                ⚡
-                            </Text>
+                                style={[
+                                    styles.lengthButtonText,
 
-                            <Text
-                                style={
-                                    getLengthTextStyle(
-                                        "short"
-                                    )
-                                }
+                                    summaryLength ===
+                                        "short" &&
+                                        styles.lengthButtonTextActive,
+                                ]}
                             >
                                 Ngắn
                             </Text>
-
-                            <Text
-                                style={
-                                    styles.lengthDescription
-                                }
-                            >
-                                Ý chính
-                            </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={
-                                getLengthButtonStyle(
+                            style={[
+                                styles.lengthButton,
+
+                                summaryLength ===
+                                    "medium" &&
+                                    styles.lengthButtonActive,
+                            ]}
+                            onPress={() =>
+                                handleChangeLength(
                                     "medium"
                                 )
                             }
-                            onPress={() => {
-                                setSummaryLength(
-                                    "medium"
-                                );
-
-                                setError(
-                                    ""
-                                );
-                            }}
                             disabled={
                                 isLoading
                             }
                         >
                             <Text
-                                style={
-                                    styles.lengthIcon
-                                }
-                            >
-                                📝
-                            </Text>
+                                style={[
+                                    styles.lengthButtonText,
 
-                            <Text
-                                style={
-                                    getLengthTextStyle(
-                                        "medium"
-                                    )
-                                }
+                                    summaryLength ===
+                                        "medium" &&
+                                        styles.lengthButtonTextActive,
+                                ]}
                             >
                                 Vừa
                             </Text>
-
-                            <Text
-                                style={
-                                    styles.lengthDescription
-                                }
-                            >
-                                Cân bằng
-                            </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={
-                                getLengthButtonStyle(
+                            style={[
+                                styles.lengthButton,
+
+                                summaryLength ===
+                                    "detailed" &&
+                                    styles.lengthButtonActive,
+                            ]}
+                            onPress={() =>
+                                handleChangeLength(
                                     "detailed"
                                 )
                             }
-                            onPress={() => {
-                                setSummaryLength(
-                                    "detailed"
-                                );
-
-                                setError(
-                                    ""
-                                );
-                            }}
                             disabled={
                                 isLoading
                             }
                         >
                             <Text
-                                style={
-                                    styles.lengthIcon
-                                }
-                            >
-                                📚
-                            </Text>
+                                style={[
+                                    styles.lengthButtonText,
 
-                            <Text
-                                style={
-                                    getLengthTextStyle(
-                                        "detailed"
-                                    )
-                                }
+                                    summaryLength ===
+                                        "detailed" &&
+                                        styles.lengthButtonTextActive,
+                                ]}
                             >
                                 Chi tiết
                             </Text>
-
-                            <Text
-                                style={
-                                    styles.lengthDescription
-                                }
-                            >
-                                Đầy đủ
-                            </Text>
                         </TouchableOpacity>
                     </View>
+
+                    {/* CREATE BUTTON */}
 
                     <TouchableOpacity
                         style={[
                             styles.createButton,
 
                             isLoading &&
-                                styles.disabledButton,
+                                styles.createButtonDisabled,
                         ]}
                         onPress={
                             handleCreateSummary
@@ -702,7 +546,11 @@ export default function SummaryScreen({
                         }
                     >
                         {isLoading ? (
-                            <>
+                            <View
+                                style={
+                                    styles.loadingButtonContent
+                                }
+                            >
                                 <ActivityIndicator
                                     size="small"
                                     color={
@@ -715,9 +563,9 @@ export default function SummaryScreen({
                                         styles.createButtonText
                                     }
                                 >
-                                    AI đang tóm tắt...
+                                    Đang tạo tóm tắt...
                                 </Text>
-                            </>
+                            </View>
                         ) : (
                             <Text
                                 style={
@@ -728,27 +576,89 @@ export default function SummaryScreen({
                             </Text>
                         )}
                     </TouchableOpacity>
+                </View>
 
-                    {error ? (
-                        <View
+                {/* LOADING INFO */}
+
+                {isLoading ? (
+                    <View
+                        style={
+                            styles.loadingCard
+                        }
+                    >
+                        <ActivityIndicator
+                            size="large"
+                            color={
+                                colors.primary
+                            }
+                        />
+
+                        <Text
                             style={
-                                styles.errorContainer
+                                styles.loadingTitle
+                            }
+                        >
+                            AI đang tóm tắt tài liệu
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.loadingDescription
+                            }
+                        >
+                            Quá trình này có thể mất vài giây.
+                        </Text>
+                    </View>
+                ) : null}
+
+                {/* ERROR */}
+
+                {!isLoading &&
+                error ? (
+                    <View
+                        style={
+                            styles.errorCard
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.errorTitle
+                            }
+                        >
+                            Không thể tạo bản tóm tắt
+                        </Text>
+
+                        <Text
+                            style={
+                                styles.errorText
+                            }
+                        >
+                            {error}
+                        </Text>
+
+                        <TouchableOpacity
+                            style={
+                                styles.retryButton
+                            }
+                            onPress={
+                                handleCreateSummary
                             }
                         >
                             <Text
                                 style={
-                                    styles.errorText
+                                    styles.retryButtonText
                                 }
                             >
-                                {error}
+                                Thử lại
                             </Text>
-                        </View>
-                    ) : null}
-                </View>
+                        </TouchableOpacity>
+                    </View>
+                ) : null}
 
                 {/* SUMMARY */}
 
-                {summary ? (
+                {!isLoading &&
+                summary ? (
                     <View
                         style={
                             styles.summaryCard
@@ -759,23 +669,13 @@ export default function SummaryScreen({
                                 styles.summaryHeader
                             }
                         >
-                            <View>
-                                <Text
-                                    style={
-                                        styles.summaryTitle
-                                    }
-                                >
-                                    Bản tóm tắt
-                                </Text>
-
-                                <Text
-                                    style={
-                                        styles.summarySubtitle
-                                    }
-                                >
-                                    Được tạo bởi AI
-                                </Text>
-                            </View>
+                            <Text
+                                style={
+                                    styles.summaryTitle
+                                }
+                            >
+                                Bản tóm tắt
+                            </Text>
 
                             <View
                                 style={
@@ -788,7 +688,7 @@ export default function SummaryScreen({
                                     }
                                 >
                                     {getTypeLabel(
-                                        generatedType
+                                        summaryLength
                                     )}
                                 </Text>
                             </View>
@@ -803,74 +703,39 @@ export default function SummaryScreen({
                                 style={
                                     styles.summaryText
                                 }
-                                selectable
                             >
-                                {summary}
+                                {
+                                    summary
+                                }
                             </Text>
                         </View>
 
-                        <View
+                        <TouchableOpacity
                             style={
-                                styles.generatedContainer
+                                styles.historyLink
                             }
-                        >
-                            <View
-                                style={
-                                    styles.generatedDot
-                                }
-                            />
-
-                            <Text
-                                style={
-                                    styles.generatedText
-                                }
-                            >
-                                Tóm tắt đã được tạo thành công
-                            </Text>
-                        </View>
-                    </View>
-                ) : (
-                    <View
-                        style={
-                            styles.emptySummaryCard
-                        }
-                    >
-                        <View
-                            style={
-                                styles.emptySummaryIconContainer
+                            onPress={
+                                handleOpenHistory
                             }
                         >
                             <Text
                                 style={
-                                    styles.emptySummaryIcon
+                                    styles.historyLinkText
                                 }
                             >
-                                ✨
+                                Xem lịch sử tóm tắt →
                             </Text>
-                        </View>
-
-                        <Text
-                            style={
-                                styles.emptySummaryTitle
-                            }
-                        >
-                            Chưa có bản tóm tắt
-                        </Text>
-
-                        <Text
-                            style={
-                                styles.emptySummaryText
-                            }
-                        >
-                            Chọn độ dài mong muốn rồi nhấn
-                            "Tạo bản tóm tắt" để AI xử lý tài liệu.
-                        </Text>
+                        </TouchableOpacity>
                     </View>
-                )}
+                ) : null}
             </ScrollView>
         </View>
     );
 }
+
+// ========================================
+// STYLES
+// ========================================
 
 const styles =
     StyleSheet.create({
@@ -880,14 +745,10 @@ const styles =
                 colors.background,
         },
 
-        // ========================================
-        // HEADER
-        // ========================================
-
         header: {
             height: 100,
             paddingTop: 45,
-            paddingHorizontal: 16,
+            paddingHorizontal: 20,
             flexDirection: "row",
             alignItems: "center",
             justifyContent:
@@ -900,58 +761,47 @@ const styles =
         },
 
         backButton: {
-            width: 40,
+            width: 50,
             height: 40,
-            alignItems: "center",
+            alignItems:
+                "flex-start",
             justifyContent:
                 "center",
         },
 
         backText: {
             fontSize: 36,
-            color: colors.text,
             lineHeight: 40,
+            color: colors.text,
         },
 
         headerTitle: {
             flex: 1,
-            fontSize: 19,
+            fontSize: 20,
             fontWeight: "700",
-            color: colors.text,
             textAlign: "center",
-            marginHorizontal: 8,
-        },
-
-        headerSpace: {
-            width: 40,
+            color: colors.text,
         },
 
         historyButton: {
-            paddingHorizontal: 11,
-            paddingVertical: 8,
-            borderRadius: 8,
-            backgroundColor:
-                "#EEF2FF",
+            width: 70,
+            height: 40,
+            alignItems:
+                "flex-end",
+            justifyContent:
+                "center",
         },
 
         historyButtonText: {
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: "700",
             color: colors.primary,
         },
 
-        // ========================================
-        // CONTENT
-        // ========================================
-
         content: {
             padding: 20,
-            paddingBottom: 40,
+            paddingBottom: 50,
         },
-
-        // ========================================
-        // DOCUMENT CARD
-        // ========================================
 
         documentCard: {
             flexDirection: "row",
@@ -967,9 +817,9 @@ const styles =
         },
 
         documentIconContainer: {
-            width: 54,
-            height: 54,
-            borderRadius: 13,
+            width: 52,
+            height: 52,
+            borderRadius: 12,
             backgroundColor:
                 "#EEF2FF",
             alignItems: "center",
@@ -979,7 +829,7 @@ const styles =
         },
 
         documentIcon: {
-            fontSize: 27,
+            fontSize: 26,
         },
 
         documentInfo: {
@@ -987,30 +837,19 @@ const styles =
         },
 
         documentName: {
-            fontSize: 16,
-            lineHeight: 21,
+            fontSize: 17,
             fontWeight: "700",
             color: colors.text,
+            marginBottom: 5,
         },
 
         documentMeta: {
-            fontSize: 11,
-            fontWeight: "700",
-            color: colors.primary,
-            marginTop: 5,
-        },
-
-        documentSubject: {
-            fontSize: 12,
+            fontSize: 13,
             color: colors.gray,
-            marginTop: 3,
+            marginTop: 2,
         },
 
-        // ========================================
-        // OPTIONS
-        // ========================================
-
-        optionCard: {
+        settingCard: {
             backgroundColor:
                 colors.white,
             borderRadius: 14,
@@ -1022,31 +861,22 @@ const styles =
         },
 
         sectionTitle: {
-            fontSize: 17,
+            fontSize: 16,
             fontWeight: "700",
             color: colors.text,
-        },
-
-        sectionDescription: {
-            fontSize: 13,
-            lineHeight: 19,
-            color: colors.gray,
-            marginTop: 5,
-            marginBottom: 16,
+            marginBottom: 14,
         },
 
         lengthContainer: {
             flexDirection: "row",
-            gap: 8,
+            gap: 10,
             marginBottom: 20,
         },
 
         lengthButton: {
             flex: 1,
-            minHeight: 92,
-            paddingVertical: 12,
-            paddingHorizontal: 5,
-            borderRadius: 11,
+            height: 44,
+            borderRadius: 10,
             borderWidth: 1,
             borderColor:
                 colors.border,
@@ -1059,43 +889,33 @@ const styles =
 
         lengthButtonActive: {
             backgroundColor:
-                "#EEF2FF",
+                colors.primary,
             borderColor:
                 colors.primary,
         },
 
-        lengthIcon: {
-            fontSize: 20,
-            marginBottom: 7,
-        },
-
         lengthButtonText: {
-            fontSize: 13,
-            fontWeight: "700",
+            fontSize: 14,
+            fontWeight: "600",
             color: colors.gray,
         },
 
         lengthButtonTextActive: {
-            color: colors.primary,
-        },
-
-        lengthDescription: {
-            fontSize: 10,
-            color: colors.gray,
-            marginTop: 4,
+            color: colors.white,
         },
 
         createButton: {
-            minHeight: 50,
-            flexDirection: "row",
-            gap: 9,
+            height: 50,
+            borderRadius: 10,
             backgroundColor:
                 colors.primary,
-            borderRadius: 11,
-            paddingHorizontal: 15,
             alignItems: "center",
             justifyContent:
                 "center",
+        },
+
+        createButtonDisabled: {
+            opacity: 0.7,
         },
 
         createButtonText: {
@@ -1104,28 +924,78 @@ const styles =
             color: colors.white,
         },
 
-        disabledButton: {
-            opacity: 0.65,
+        loadingButtonContent: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
         },
 
-        errorContainer: {
+        loadingCard: {
+            alignItems: "center",
+            backgroundColor:
+                colors.white,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor:
+                colors.border,
+            padding: 24,
+            marginBottom: 16,
+        },
+
+        loadingTitle: {
+            fontSize: 16,
+            fontWeight: "700",
+            color: colors.text,
+            marginTop: 14,
+        },
+
+        loadingDescription: {
+            fontSize: 13,
+            color: colors.gray,
+            textAlign: "center",
+            marginTop: 6,
+        },
+
+        errorCard: {
             backgroundColor:
                 "#FEF2F2",
-            borderRadius: 9,
-            padding: 11,
-            marginTop: 12,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor:
+                "#FECACA",
+            padding: 18,
+            marginBottom: 16,
+        },
+
+        errorTitle: {
+            fontSize: 16,
+            fontWeight: "700",
+            color: colors.error,
+            marginBottom: 6,
         },
 
         errorText: {
-            fontSize: 13,
-            lineHeight: 19,
+            fontSize: 14,
+            lineHeight: 21,
             color: colors.error,
-            textAlign: "center",
         },
 
-        // ========================================
-        // SUMMARY
-        // ========================================
+        retryButton: {
+            alignSelf:
+                "flex-start",
+            marginTop: 14,
+            paddingHorizontal: 18,
+            paddingVertical: 10,
+            borderRadius: 9,
+            backgroundColor:
+                colors.error,
+        },
+
+        retryButtonText: {
+            fontSize: 14,
+            fontWeight: "700",
+            color: colors.white,
+        },
 
         summaryCard: {
             backgroundColor:
@@ -1139,148 +1009,56 @@ const styles =
 
         summaryHeader: {
             flexDirection: "row",
-            alignItems:
-                "flex-start",
+            alignItems: "center",
             justifyContent:
                 "space-between",
             marginBottom: 16,
         },
 
         summaryTitle: {
-            fontSize: 19,
+            fontSize: 20,
             fontWeight: "700",
             color: colors.text,
-        },
-
-        summarySubtitle: {
-            fontSize: 12,
-            color: colors.gray,
-            marginTop: 3,
         },
 
         summaryBadge: {
             backgroundColor:
                 "#EEF2FF",
+            borderRadius: 8,
             paddingHorizontal: 10,
             paddingVertical: 6,
-            borderRadius: 20,
         },
 
         summaryBadgeText: {
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: "700",
             color: colors.primary,
         },
 
         summaryContent: {
-            backgroundColor:
-                colors.background,
-            borderRadius: 11,
-            padding: 15,
+            borderTopWidth: 1,
+            borderTopColor:
+                colors.border,
+            paddingTop: 16,
         },
 
         summaryText: {
-            fontSize: 14,
-            lineHeight: 23,
+            fontSize: 15,
+            lineHeight: 25,
             color: colors.text,
         },
 
-        generatedContainer: {
-            flexDirection: "row",
-            alignItems: "center",
-            marginTop: 14,
-        },
-
-        generatedDot: {
-            width: 7,
-            height: 7,
-            borderRadius: 4,
-            backgroundColor:
-                "#16A34A",
-            marginRight: 7,
-        },
-
-        generatedText: {
-            fontSize: 12,
-            color: colors.gray,
-        },
-
-        // ========================================
-        // EMPTY SUMMARY
-        // ========================================
-
-        emptySummaryCard: {
-            backgroundColor:
-                colors.white,
-            borderRadius: 14,
-            borderWidth: 1,
-            borderColor:
+        historyLink: {
+            marginTop: 20,
+            paddingTop: 14,
+            borderTopWidth: 1,
+            borderTopColor:
                 colors.border,
-            paddingVertical: 35,
-            paddingHorizontal: 25,
-            alignItems: "center",
         },
 
-        emptySummaryIconContainer: {
-            width: 64,
-            height: 64,
-            borderRadius: 18,
-            backgroundColor:
-                "#EEF2FF",
-            alignItems: "center",
-            justifyContent:
-                "center",
-            marginBottom: 14,
-        },
-
-        emptySummaryIcon: {
-            fontSize: 30,
-        },
-
-        emptySummaryTitle: {
-            fontSize: 17,
-            fontWeight: "700",
-            color: colors.text,
-            marginBottom: 7,
-        },
-
-        emptySummaryText: {
-            fontSize: 13,
-            lineHeight: 20,
-            color: colors.gray,
-            textAlign: "center",
-            maxWidth: 310,
-        },
-
-        // ========================================
-        // EMPTY DOCUMENT
-        // ========================================
-
-        emptyDocumentContainer: {
-            flex: 1,
-            alignItems: "center",
-            justifyContent:
-                "center",
-            paddingHorizontal: 30,
-            paddingBottom: 80,
-        },
-
-        emptyDocumentIcon: {
-            fontSize: 45,
-            marginBottom: 15,
-        },
-
-        emptyDocumentTitle: {
-            fontSize: 20,
-            fontWeight: "700",
-            color: colors.text,
-            marginBottom: 8,
-        },
-
-        emptyDocumentText: {
+        historyLinkText: {
             fontSize: 14,
-            lineHeight: 20,
-            color: colors.gray,
-            textAlign: "center",
+            fontWeight: "700",
+            color: colors.primary,
         },
     });

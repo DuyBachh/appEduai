@@ -23,6 +23,7 @@ const {
 const cleanSummaryText = (text = "") => {
     let cleaned = String(text);
 
+    // Xóa câu chào / giới thiệu
     cleaned = cleaned.replace(
         /^Chào bạn[^\n]*\n*/i,
         ""
@@ -38,11 +39,13 @@ const cleanSummaryText = (text = "") => {
         ""
     );
 
+    // Xóa Markdown heading
     cleaned = cleaned.replace(
         /^#{1,6}\s*/gm,
         ""
     );
 
+    // Xóa bold
     cleaned = cleaned.replace(
         /\*\*(.*?)\*\*/g,
         "$1"
@@ -53,6 +56,7 @@ const cleanSummaryText = (text = "") => {
         "$1"
     );
 
+    // Xóa italic
     cleaned = cleaned.replace(
         /\*([^*\n]+)\*/g,
         "$1"
@@ -63,6 +67,7 @@ const cleanSummaryText = (text = "") => {
         "$1"
     );
 
+    // Bullet Markdown -> bullet thường
     cleaned = cleaned.replace(
         /^\s*\*\s+/gm,
         "• "
@@ -73,6 +78,7 @@ const cleanSummaryText = (text = "") => {
         "• "
     );
 
+    // Xóa code Markdown
     cleaned = cleaned.replace(
         /```/g,
         ""
@@ -83,22 +89,73 @@ const cleanSummaryText = (text = "") => {
         ""
     );
 
+    // Xóa ---
     cleaned = cleaned.replace(
         /^-{3,}\s*$/gm,
         ""
     );
 
+    // Xóa khoảng trắng cuối dòng
     cleaned = cleaned.replace(
         /[ \t]+$/gm,
         ""
     );
 
+    // Giảm dòng trống
     cleaned = cleaned.replace(
         /\n{3,}/g,
         "\n\n"
     );
 
     return cleaned.trim();
+};
+
+// ========================================
+// CLEAN STORED SUMMARY
+// ========================================
+
+const cleanStoredSummary = async (
+    summariesCollection,
+    summary
+) => {
+    if (!summary) {
+        return summary;
+    }
+
+    const cleanedContent =
+        cleanSummaryText(
+            summary.content
+        );
+
+    if (
+        cleanedContent ===
+        summary.content
+    ) {
+        return summary;
+    }
+
+    const updatedAt =
+        new Date();
+
+    await summariesCollection.updateOne(
+        {
+            _id: summary._id,
+        },
+        {
+            $set: {
+                content:
+                    cleanedContent,
+                updatedAt,
+            },
+        }
+    );
+
+    return {
+        ...summary,
+        content:
+            cleanedContent,
+        updatedAt,
+    };
 };
 
 // ========================================
@@ -110,6 +167,10 @@ const summarizeDocument = async ({
     documentId,
     type = "medium",
 }) => {
+    // ========================================
+    // VALIDATE
+    // ========================================
+
     if (!ObjectId.isValid(userId)) {
         const error = new Error(
             "User ID không hợp lệ."
@@ -143,6 +204,10 @@ const summarizeDocument = async ({
         throw error;
     }
 
+    // ========================================
+    // DATABASE
+    // ========================================
+
     const db =
         client.db("appEduai");
 
@@ -158,10 +223,16 @@ const summarizeDocument = async ({
     const documentObjectId =
         new ObjectId(documentId);
 
+    // ========================================
+    // GET DOCUMENT
+    // ========================================
+
     const document =
         await documentsCollection.findOne({
-            _id: documentObjectId,
-            userId: userObjectId,
+            _id:
+                documentObjectId,
+            userId:
+                userObjectId,
         });
 
     if (!document) {
@@ -212,63 +283,43 @@ const summarizeDocument = async ({
             `SUMMARY CACHE HIT: ${type}`
         );
 
-        const cleanedContent =
-            cleanSummaryText(
-                cachedSummary.content
-            );
-
-        if (
-            cleanedContent !==
-            cachedSummary.content
-        ) {
-            const updatedAt =
-                new Date();
-
-            await summariesCollection.updateOne(
-                {
-                    _id:
-                        cachedSummary._id,
-                },
-                {
-                    $set: {
-                        content:
-                            cleanedContent,
-
-                        updatedAt,
-                    },
-                }
-            );
-
-            cachedSummary.content =
-                cleanedContent;
-
-            cachedSummary.updatedAt =
-                updatedAt;
-        }
-
-        return cachedSummary;
+        return cleanStoredSummary(
+            summariesCollection,
+            cachedSummary
+        );
     }
 
     console.log(
         `SUMMARY CACHE MISS: ${type}`
     );
 
+    // ========================================
+    // PROMPT
+    // ========================================
+
     const prompt =
         getSummaryPrompt({
             text:
                 document.extractedText,
-
             type,
         });
 
+    // ========================================
+    // TOKEN LIMIT
+    // ========================================
+
     const tokenLimits = {
-        short: 350,
-        medium: 700,
-        detailed: 1200,
+        short: 180,
+        medium: 300,
+        detailed: 450,
     };
 
     const maxOutputTokens =
         tokenLimits[type];
+
+    // ========================================
+    // AI
+    // ========================================
 
     const aiStartTime =
         Date.now();
@@ -276,33 +327,21 @@ const summarizeDocument = async ({
     const rawContent =
         await generateText({
             instructions: [
-    "Bạn là trợ lý học tập.",
-    "Tóm tắt trực tiếp nội dung tài liệu.",
-
-    "BẮT BUỘC viết bằng tiếng Việt có dấu đầy đủ.",
-    "Không được viết tiếng Việt không dấu.",
-    "Giữ đúng chính tả tiếng Việt.",
-    "Không viết toàn bộ nội dung bằng chữ IN HOA.",
-
-    "Không chào hỏi.",
-    "Không giới thiệu bản thân.",
-    "Không thêm thông tin ngoài tài liệu.",
-
-    "Chỉ trả về văn bản thuần túy.",
-    "Không sử dụng Markdown.",
-    "Không sử dụng ký tự #.",
-    "Không sử dụng dấu **.",
-    "Không sử dụng dấu * để định dạng.",
-    "Không sử dụng dấu ```.",
-    "Không sử dụng đường phân cách ---.",
-
-    "Có thể sử dụng dấu • để liệt kê.",
-    "Tiêu đề và nội dung phải dễ đọc.",
-    "Nội dung phải phù hợp cho sinh viên.",
-
-    "Ví dụ cách viết đúng: React Native cho phép xây dựng ứng dụng di động bằng JavaScript.",
-    "Ví dụ cách viết sai: React Native cho phep xay dung ung dung di dong bang JavaScript.",
-].join(" "),
+                "Tóm tắt tài liệu bằng tiếng Việt có dấu.",
+                "Bắt buộc sử dụng tiếng Việt có dấu đầy đủ.",
+                "Không chào hỏi.",
+                "Không giới thiệu bản thân.",
+                "Không thêm thông tin ngoài tài liệu.",
+                "Chỉ trả về văn bản thuần túy.",
+                "Không sử dụng Markdown.",
+                "Không sử dụng ký tự #.",
+                "Không sử dụng dấu **.",
+                "Không sử dụng dấu * để định dạng.",
+                "Không sử dụng dấu ```.",
+                "Không sử dụng đường phân cách ---.",
+                "Có thể sử dụng dấu • để liệt kê.",
+                "Viết ngắn gọn, rõ ràng và dễ học.",
+            ].join(" "),
 
             prompt,
 
@@ -318,6 +357,10 @@ const summarizeDocument = async ({
         ).toFixed(2)} giây`
     );
 
+    // ========================================
+    // CLEAN AI RESULT
+    // ========================================
+
     const content =
         cleanSummaryText(
             rawContent
@@ -331,6 +374,10 @@ const summarizeDocument = async ({
         error.statusCode = 502;
         throw error;
     }
+
+    // ========================================
+    // SAVE SUMMARY
+    // ========================================
 
     const summary =
         createSummary({
@@ -398,8 +445,11 @@ const getDocumentSummaries = async ({
 
     const document =
         await documentsCollection.findOne({
-            _id: documentObjectId,
-            userId: userObjectId,
+            _id:
+                documentObjectId,
+
+            userId:
+                userObjectId,
         });
 
     if (!document) {
@@ -425,7 +475,18 @@ const getDocumentSummaries = async ({
             })
             .toArray();
 
-    return summaries;
+    const cleanedSummaries =
+        await Promise.all(
+            summaries.map(
+                (summary) =>
+                    cleanStoredSummary(
+                        summariesCollection,
+                        summary
+                    )
+            )
+        );
+
+    return cleanedSummaries;
 };
 
 // ========================================
@@ -463,10 +524,14 @@ const getSummaryById = async ({
     const summary =
         await summariesCollection.findOne({
             _id:
-                new ObjectId(summaryId),
+                new ObjectId(
+                    summaryId
+                ),
 
             userId:
-                new ObjectId(userId),
+                new ObjectId(
+                    userId
+                ),
         });
 
     if (!summary) {
@@ -478,42 +543,10 @@ const getSummaryById = async ({
         throw error;
     }
 
-    // Làm sạch Markdown của dữ liệu cũ
-    const cleanedContent =
-        cleanSummaryText(
-            summary.content
-        );
-
-    if (
-        cleanedContent !==
-        summary.content
-    ) {
-        const updatedAt =
-            new Date();
-
-        await summariesCollection.updateOne(
-            {
-                _id:
-                    summary._id,
-            },
-            {
-                $set: {
-                    content:
-                        cleanedContent,
-
-                    updatedAt,
-                },
-            }
-        );
-
-        summary.content =
-            cleanedContent;
-
-        summary.updatedAt =
-            updatedAt;
-    }
-
-    return summary;
+    return cleanStoredSummary(
+        summariesCollection,
+        summary
+    );
 };
 
 // ========================================
@@ -551,13 +584,19 @@ const deleteSummaryById = async ({
     const result =
         await summariesCollection.deleteOne({
             _id:
-                new ObjectId(summaryId),
+                new ObjectId(
+                    summaryId
+                ),
 
             userId:
-                new ObjectId(userId),
+                new ObjectId(
+                    userId
+                ),
         });
 
-    if (result.deletedCount === 0) {
+    if (
+        result.deletedCount === 0
+    ) {
         const error = new Error(
             "Không tìm thấy bản tóm tắt."
         );
@@ -568,6 +607,10 @@ const deleteSummaryById = async ({
 
     return true;
 };
+
+// ========================================
+// EXPORT
+// ========================================
 
 module.exports = {
     summarizeDocument,
