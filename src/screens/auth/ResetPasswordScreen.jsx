@@ -12,329 +12,427 @@ import {
 
 import colors from "../../styles/colors";
 
-export default function ResetPasswordScreen({ navigation, route }) {
+import {
+    apiRequest,
+} from "../../services/api";
 
-    // ========================================
-    // STATE
-    // ========================================
+export default function ResetPasswordScreen({
+    navigation,
+    route,
+}) {
+    const [
+        newPassword,
+        setNewPassword,
+    ] = useState("");
 
-    const [newPassword, setNewPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
+    const [
+        confirmPassword,
+        setConfirmPassword,
+    ] = useState("");
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] =
+        useState(false);
 
-    const [error, setError] = useState("");
+    const [error, setError] =
+        useState("");
 
-    // Hiện / ẩn mật khẩu
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [
+        showPassword,
+        setShowPassword,
+    ] = useState(false);
 
+    const [
+        showConfirmPassword,
+        setShowConfirmPassword,
+    ] = useState(false);
 
-    // ========================================
-    // EMAIL TỪ FORGOT PASSWORD
-    // ========================================
+    const email =
+        route?.params?.email || "";
 
-    const email = route?.params?.email || "";
+    const resetToken =
+        route?.params?.resetToken || "";
 
-
-    // ========================================
-    // VALIDATE PASSWORD
-    // ========================================
-
-    const validatePassword = (password) => {
+    const validatePassword = (
+        password
+    ) => {
         return password.length >= 6;
     };
 
+    const handleResetPassword =
+        async () => {
+            setError("");
 
-    // ========================================
-    // HANDLE RESET PASSWORD
-    // ========================================
+            if (!resetToken) {
+                setError(
+                    "Yêu cầu đặt lại mật khẩu không hợp lệ."
+                );
 
-    const handleResetPassword = () => {
+                return;
+            }
 
-        // Xóa lỗi cũ
-        setError("");
+            if (
+                !newPassword.trim()
+            ) {
+                setError(
+                    "Vui lòng nhập mật khẩu mới"
+                );
 
+                return;
+            }
 
-        // ========================================
-        // KIỂM TRA MẬT KHẨU MỚI
-        // ========================================
+            if (
+                !validatePassword(
+                    newPassword
+                )
+            ) {
+                setError(
+                    "Mật khẩu phải có ít nhất 6 ký tự"
+                );
 
-        if (!newPassword.trim()) {
-            setError("Vui lòng nhập mật khẩu mới");
-            return;
-        }
+                return;
+            }
 
+            if (
+                !confirmPassword.trim()
+            ) {
+                setError(
+                    "Vui lòng xác nhận mật khẩu"
+                );
 
-        // ========================================
-        // KIỂM TRA ĐỘ DÀI MẬT KHẨU
-        // ========================================
+                return;
+            }
 
-        if (!validatePassword(newPassword)) {
-            setError("Mật khẩu phải có ít nhất 6 ký tự");
-            return;
-        }
+            if (
+                newPassword !==
+                confirmPassword
+            ) {
+                setError(
+                    "Mật khẩu xác nhận không khớp"
+                );
 
+                return;
+            }
 
-        // ========================================
-        // KIỂM TRA XÁC NHẬN MẬT KHẨU
-        // ========================================
+            try {
+                setLoading(true);
 
-        if (!confirmPassword.trim()) {
-            setError("Vui lòng xác nhận mật khẩu");
-            return;
-        }
+                const result =
+                    await apiRequest(
+                        "/auth/reset-password",
+                        {
+                            method:
+                                "POST",
 
+                            skipAuth:
+                                true,
 
-        // ========================================
-        // KIỂM TRA PASSWORD KHỚP
-        // ========================================
+                            body:
+                                JSON.stringify(
+                                    {
+                                        token:
+                                            resetToken,
 
-        if (newPassword !== confirmPassword) {
-            setError("Mật khẩu xác nhận không khớp");
-            return;
-        }
+                                        newPassword,
+                                    }
+                                ),
+                        }
+                    );
 
-
-        // ========================================
-        // BẮT ĐẦU LOADING
-        // ========================================
-
-        setLoading(true);
-
-
-        // ========================================
-        // MÔ PHỎNG RESET PASSWORD
-        // ========================================
-
-        setTimeout(() => {
-
-            setLoading(false);
-
-            Alert.alert(
-                "Thành công",
-                "Mật khẩu của bạn đã được đặt lại.",
-                [
+                console.log(
+                    "RESET PASSWORD SUCCESS:",
                     {
-                        text: "Đăng nhập",
-                        onPress: () => navigation.navigate("Login"),
-                    },
-                ]
-            );
+                        success:
+                            result.success,
+                        message:
+                            result.message,
+                    }
+                );
 
-        }, 1500);
-    };
+                Alert.alert(
+                    "Thành công",
+                    result.message ||
+                        "Mật khẩu của bạn đã được đặt lại.",
+                    [
+                        {
+                            text:
+                                "Đăng nhập",
 
+                            onPress:
+                                () =>
+                                    navigation.replace(
+                                        "Login"
+                                    ),
+                        },
+                    ]
+                );
+            } catch (error) {
+                console.log(
+                    "RESET PASSWORD ERROR:",
+                    error.message
+                );
 
-    // ========================================
-    // RENDER
-    // ========================================
+                setError(
+                    error.message ||
+                        "Không thể đặt lại mật khẩu."
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
 
     return (
-        <View style={styles.container}>
-
-            {/* ========================================
-                TITLE
-            ======================================== */}
-
-            <Text style={styles.title}>
+        <View
+            style={
+                styles.container
+            }
+        >
+            <Text
+                style={styles.title}
+            >
                 Đặt lại mật khẩu
             </Text>
 
-
-            {/* ========================================
-                DESCRIPTION
-            ======================================== */}
-
-            <Text style={styles.subtitle}>
-                Tạo mật khẩu mới cho tài khoản
+            <Text
+                style={
+                    styles.subtitle
+                }
+            >
+                Tạo mật khẩu mới
+                cho tài khoản
             </Text>
 
-
-            {/* ========================================
-                EMAIL
-            ======================================== */}
-
             {email !== "" && (
-                <Text style={styles.emailText}>
+                <Text
+                    style={
+                        styles.emailText
+                    }
+                >
                     {email}
                 </Text>
             )}
 
-
-            {/* ========================================
-                NEW PASSWORD
-            ======================================== */}
-
-            <View style={styles.inputGroup}>
-
-                <Text style={styles.label}>
+            <View
+                style={
+                    styles.inputGroup
+                }
+            >
+                <Text
+                    style={
+                        styles.label
+                    }
+                >
                     Mật khẩu mới
                 </Text>
 
-                <View style={styles.passwordContainer}>
-
+                <View
+                    style={
+                        styles.passwordContainer
+                    }
+                >
                     <TextInput
-                        style={styles.passwordInput}
+                        style={
+                            styles.passwordInput
+                        }
                         placeholder="Nhập mật khẩu mới"
-                        placeholderTextColor={colors.gray}
-                        value={newPassword}
-                        onChangeText={(text) => {
-                            setNewPassword(text);
+                        placeholderTextColor={
+                            colors.gray
+                        }
+                        value={
+                            newPassword
+                        }
+                        onChangeText={(
+                            text
+                        ) => {
+                            setNewPassword(
+                                text
+                            );
+
                             setError("");
                         }}
-                        secureTextEntry={!showPassword}
+                        secureTextEntry={
+                            !showPassword
+                        }
                         autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!loading}
+                        autoCorrect={
+                            false
+                        }
+                        editable={
+                            !loading
+                        }
                     />
 
                     <TouchableOpacity
-                        style={styles.eyeButton}
-                        onPress={() =>
-                            setShowPassword(!showPassword)
+                        style={
+                            styles.eyeButton
                         }
-                        disabled={loading}
+                        onPress={() =>
+                            setShowPassword(
+                                !showPassword
+                            )
+                        }
+                        disabled={
+                            loading
+                        }
                     >
-                        <Text style={styles.eyeIcon}>
-                            {showPassword ? "🙈" : "👁️"}
+                        <Text
+                            style={
+                                styles.eyeIcon
+                            }
+                        >
+                            {showPassword
+                                ? "🙈"
+                                : "👁️"}
                         </Text>
                     </TouchableOpacity>
-
                 </View>
-
             </View>
 
-
-            {/* ========================================
-                CONFIRM PASSWORD
-            ======================================== */}
-
-            <View style={styles.inputGroup}>
-
-                <Text style={styles.label}>
+            <View
+                style={
+                    styles.inputGroup
+                }
+            >
+                <Text
+                    style={
+                        styles.label
+                    }
+                >
                     Xác nhận mật khẩu
                 </Text>
 
-                <View style={styles.passwordContainer}>
-
+                <View
+                    style={
+                        styles.passwordContainer
+                    }
+                >
                     <TextInput
-                        style={styles.passwordInput}
+                        style={
+                            styles.passwordInput
+                        }
                         placeholder="Nhập lại mật khẩu mới"
-                        placeholderTextColor={colors.gray}
-                        value={confirmPassword}
-                        onChangeText={(text) => {
-                            setConfirmPassword(text);
+                        placeholderTextColor={
+                            colors.gray
+                        }
+                        value={
+                            confirmPassword
+                        }
+                        onChangeText={(
+                            text
+                        ) => {
+                            setConfirmPassword(
+                                text
+                            );
+
                             setError("");
                         }}
-                        secureTextEntry={!showConfirmPassword}
+                        secureTextEntry={
+                            !showConfirmPassword
+                        }
                         autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!loading}
+                        autoCorrect={
+                            false
+                        }
+                        editable={
+                            !loading
+                        }
                     />
 
                     <TouchableOpacity
-                        style={styles.eyeButton}
+                        style={
+                            styles.eyeButton
+                        }
                         onPress={() =>
                             setShowConfirmPassword(
                                 !showConfirmPassword
                             )
                         }
-                        disabled={loading}
+                        disabled={
+                            loading
+                        }
                     >
-                        <Text style={styles.eyeIcon}>
-                            {showConfirmPassword ? "🙈" : "👁️"}
+                        <Text
+                            style={
+                                styles.eyeIcon
+                            }
+                        >
+                            {showConfirmPassword
+                                ? "🙈"
+                                : "👁️"}
                         </Text>
                     </TouchableOpacity>
-
                 </View>
-
             </View>
 
-
-            {/* ========================================
-                ERROR MESSAGE
-            ======================================== */}
-
             {error !== "" && (
-                <Text style={styles.errorText}>
+                <Text
+                    style={
+                        styles.errorText
+                    }
+                >
                     {error}
                 </Text>
             )}
 
-
-            {/* ========================================
-                RESET BUTTON
-            ======================================== */}
-
             <TouchableOpacity
                 style={[
                     styles.resetButton,
-                    loading && styles.buttonDisabled,
+
+                    loading &&
+                        styles.buttonDisabled,
                 ]}
-                onPress={handleResetPassword}
+                onPress={
+                    handleResetPassword
+                }
                 disabled={loading}
             >
-
                 {loading ? (
-
                     <ActivityIndicator
-                        color={colors.white}
+                        color={
+                            colors.white
+                        }
                     />
-
                 ) : (
-
-                    <Text style={styles.resetButtonText}>
+                    <Text
+                        style={
+                            styles.resetButtonText
+                        }
+                    >
                         Đặt lại mật khẩu
                     </Text>
-
                 )}
-
             </TouchableOpacity>
-
-
-            {/* ========================================
-                BACK TO LOGIN
-            ======================================== */}
 
             <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.navigate("Login")}
+                style={
+                    styles.backButton
+                }
+                onPress={() =>
+                    navigation.navigate(
+                        "Login"
+                    )
+                }
                 disabled={loading}
             >
-
-                <Text style={styles.backText}>
+                <Text
+                    style={
+                        styles.backText
+                    }
+                >
                     Quay lại đăng nhập
                 </Text>
-
             </TouchableOpacity>
-
         </View>
     );
 }
 
-
-// ========================================
-// STYLES
-// ========================================
-
 const styles = StyleSheet.create({
-
-    // ========================================
-    // CONTAINER
-    // ========================================
-
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor:
+            colors.background,
         justifyContent: "center",
         padding: 20,
     },
-
-
-    // ========================================
-    // TITLE
-    // ========================================
 
     title: {
         fontSize: 28,
@@ -344,7 +442,6 @@ const styles = StyleSheet.create({
         textAlign: "center",
     },
 
-
     subtitle: {
         fontSize: 14,
         lineHeight: 20,
@@ -352,11 +449,6 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginTop: 8,
     },
-
-
-    // ========================================
-    // EMAIL
-    // ========================================
 
     emailText: {
         fontSize: 14,
@@ -366,15 +458,9 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
 
-
-    // ========================================
-    // INPUT GROUP
-    // ========================================
-
     inputGroup: {
         marginBottom: 18,
     },
-
 
     label: {
         fontSize: 14,
@@ -383,21 +469,17 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
 
-
-    // ========================================
-    // PASSWORD
-    // ========================================
-
     passwordContainer: {
         height: 48,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         borderRadius: 10,
     },
-
 
     passwordInput: {
         flex: 1,
@@ -407,7 +489,6 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
 
-
     eyeButton: {
         height: "100%",
         paddingHorizontal: 12,
@@ -415,15 +496,9 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
 
-
     eyeIcon: {
         fontSize: 20,
     },
-
-
-    // ========================================
-    // ERROR
-    // ========================================
 
     errorText: {
         fontSize: 14,
@@ -433,24 +508,18 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
 
-
-    // ========================================
-    // RESET BUTTON
-    // ========================================
-
     resetButton: {
         height: 48,
-        backgroundColor: colors.primary,
+        backgroundColor:
+            colors.primary,
         borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",
     },
 
-
     buttonDisabled: {
         opacity: 0.7,
     },
-
 
     resetButtonText: {
         fontSize: 16,
@@ -458,22 +527,14 @@ const styles = StyleSheet.create({
         color: colors.white,
     },
 
-
-    // ========================================
-    // BACK TO LOGIN
-    // ========================================
-
     backButton: {
         alignItems: "center",
         marginTop: 24,
     },
-
 
     backText: {
         fontSize: 14,
         fontWeight: "600",
         color: colors.primary,
     },
-
 });
-

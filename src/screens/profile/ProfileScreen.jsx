@@ -1,4 +1,6 @@
-import { useState } from "react";
+import {
+    useState,
+} from "react";
 
 import {
     View,
@@ -7,22 +9,47 @@ import {
     TouchableOpacity,
     StyleSheet,
     Alert,
+    ActivityIndicator,
 } from "react-native";
 
 import colors from "../../styles/colors";
 
-export default function ProfileScreen({ currentUser, onLogout }) {
-    const [name, setName] = useState(
-        currentUser?.name || "Người dùng"
-    );
+import {
+    apiRequest,
+} from "../../services/api";
 
-    const [oldName, setOldName] = useState(
-        currentUser?.name || "Người dùng"
-    );
+import {
+    removeToken,
+} from "../../services/tokenStorage";
 
-    const [isEditing, setIsEditing] = useState(false);
+export default function ProfileScreen({
+    currentUser,
+    onLogout,
+}) {
+    const [name, setName] =
+        useState(
+            currentUser?.name ||
+                "Người dùng"
+        );
 
-    const email = currentUser?.email || "";
+    const [oldName, setOldName] =
+        useState(
+            currentUser?.name ||
+                "Người dùng"
+        );
+
+    const [
+        isEditing,
+        setIsEditing,
+    ] = useState(false);
+
+    const [
+        logoutLoading,
+        setLogoutLoading,
+    ] = useState(false);
+
+    const email =
+        currentUser?.email || "";
 
     // Bắt đầu chỉnh sửa tên
     const handleEdit = () => {
@@ -32,18 +59,26 @@ export default function ProfileScreen({ currentUser, onLogout }) {
 
     // Lưu tên mới
     const handleSave = () => {
-        const trimmedName = name.trim();
+        const trimmedName =
+            name.trim();
 
         if (!trimmedName) {
-            Alert.alert("Lỗi", "Tên không được để trống");
+            Alert.alert(
+                "Lỗi",
+                "Tên không được để trống"
+            );
+
             return;
         }
 
-        if (trimmedName.length < 2) {
+        if (
+            trimmedName.length < 2
+        ) {
             Alert.alert(
                 "Lỗi",
                 "Tên phải có ít nhất 2 ký tự"
             );
+
             return;
         }
 
@@ -62,7 +97,41 @@ export default function ProfileScreen({ currentUser, onLogout }) {
         setIsEditing(false);
     };
 
-    // Đăng xuất
+    // Gọi API đăng xuất
+    const logout = async () => {
+        try {
+            setLogoutLoading(true);
+
+            const result =
+                await apiRequest(
+                    "/auth/logout",
+                    {
+                        method:
+                            "POST",
+                    }
+                );
+
+            console.log(
+                "LOGOUT SUCCESS:",
+                result
+            );
+        } catch (error) {
+            console.log(
+                "LOGOUT API ERROR:",
+                error.message
+            );
+        } finally {
+            // Luôn xóa token khỏi máy
+            await removeToken();
+
+            // Chuyển AppNavigator về Login
+            onLogout();
+
+            setLogoutLoading(false);
+        }
+    };
+
+    // Xác nhận đăng xuất
     const handleLogout = () => {
         Alert.alert(
             "Đăng xuất",
@@ -74,251 +143,381 @@ export default function ProfileScreen({ currentUser, onLogout }) {
                 },
                 {
                     text: "Đăng xuất",
-                    style: "destructive",
-                    onPress: onLogout,
+                    style:
+                        "destructive",
+                    onPress:
+                        logout,
                 },
             ]
         );
     };
 
     return (
-        <View style={styles.container}>
-            {/* Tiêu đề */}
-            <Text style={styles.title}>Hồ sơ</Text>
+        <View
+            style={
+                styles.container
+            }
+        >
+            <Text
+                style={styles.title}
+            >
+                Hồ sơ
+            </Text>
 
-            {/* Avatar */}
-            <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                    {name.charAt(0).toUpperCase()}
+            <View
+                style={styles.avatar}
+            >
+                <Text
+                    style={
+                        styles.avatarText
+                    }
+                >
+                    {name
+                        .charAt(0)
+                        .toUpperCase()}
                 </Text>
             </View>
 
-            {/* Tên */}
-            <View style={styles.section}>
-                <Text style={styles.label}>
+            <View
+                style={
+                    styles.section
+                }
+            >
+                <Text
+                    style={
+                        styles.label
+                    }
+                >
                     Họ và tên
                 </Text>
 
                 {isEditing ? (
                     <TextInput
-                        style={styles.input}
+                        style={
+                            styles.input
+                        }
                         value={name}
-                        onChangeText={setName}
+                        onChangeText={
+                            setName
+                        }
                         placeholder="Nhập họ và tên"
-                        placeholderTextColor={colors.gray}
+                        placeholderTextColor={
+                            colors.gray
+                        }
                     />
                 ) : (
-                    <View style={styles.infoBox}>
-                        <Text style={styles.value}>
+                    <View
+                        style={
+                            styles.infoBox
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.value
+                            }
+                        >
                             {name}
                         </Text>
                     </View>
                 )}
             </View>
 
-            {/* Email */}
-            <View style={styles.section}>
-                <Text style={styles.label}>
+            <View
+                style={
+                    styles.section
+                }
+            >
+                <Text
+                    style={
+                        styles.label
+                    }
+                >
                     Email
                 </Text>
 
-                <View style={styles.infoBox}>
-                    <Text style={styles.value}>
+                <View
+                    style={
+                        styles.infoBox
+                    }
+                >
+                    <Text
+                        style={
+                            styles.value
+                        }
+                    >
                         {email}
                     </Text>
                 </View>
 
-                <Text style={styles.note}>
-                    Email không thể chỉnh sửa
+                <Text
+                    style={
+                        styles.note
+                    }
+                >
+                    Email không thể
+                    chỉnh sửa
                 </Text>
             </View>
 
-            {/* Nút chỉnh sửa / lưu / hủy */}
             {!isEditing ? (
                 <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={handleEdit}
+                    style={
+                        styles.editButton
+                    }
+                    onPress={
+                        handleEdit
+                    }
+                    disabled={
+                        logoutLoading
+                    }
                 >
-                    <Text style={styles.editButtonText}>
-                        Chỉnh sửa thông tin
+                    <Text
+                        style={
+                            styles.editButtonText
+                        }
+                    >
+                        Chỉnh sửa thông
+                        tin
                     </Text>
                 </TouchableOpacity>
             ) : (
-                <View style={styles.editActions}>
+                <View
+                    style={
+                        styles.editActions
+                    }
+                >
                     <TouchableOpacity
-                        style={styles.cancelButton}
-                        onPress={handleCancel}
+                        style={
+                            styles.cancelButton
+                        }
+                        onPress={
+                            handleCancel
+                        }
                     >
-                        <Text style={styles.cancelButtonText}>
+                        <Text
+                            style={
+                                styles.cancelButtonText
+                            }
+                        >
                             Hủy
                         </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.saveButton}
-                        onPress={handleSave}
+                        style={
+                            styles.saveButton
+                        }
+                        onPress={
+                            handleSave
+                        }
                     >
-                        <Text style={styles.saveButtonText}>
+                        <Text
+                            style={
+                                styles.saveButtonText
+                            }
+                        >
                             Lưu
                         </Text>
                     </TouchableOpacity>
                 </View>
             )}
 
-            {/* Đăng xuất */}
             <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={handleLogout}
+                style={[
+                    styles.logoutButton,
+
+                    logoutLoading &&
+                        styles.logoutButtonDisabled,
+                ]}
+                onPress={
+                    handleLogout
+                }
+                disabled={
+                    logoutLoading
+                }
             >
-                <Text style={styles.logoutText}>
-                    Đăng xuất
-                </Text>
+                {logoutLoading ? (
+                    <ActivityIndicator
+                        color={
+                            colors.error
+                        }
+                    />
+                ) : (
+                    <Text
+                        style={
+                            styles.logoutText
+                        }
+                    >
+                        Đăng xuất
+                    </Text>
+                )}
             </TouchableOpacity>
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colors.background,
-        padding: 20,
-    },
+const styles =
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor:
+                colors.background,
+            padding: 20,
+        },
 
-    title: {
-        fontSize: 28,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: 30,
-    },
+        title: {
+            fontSize: 28,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: 30,
+        },
 
-    avatar: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
-        backgroundColor: colors.primary,
-        alignSelf: "center",
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 30,
-    },
+        avatar: {
+            width: 90,
+            height: 90,
+            borderRadius: 45,
+            backgroundColor:
+                colors.primary,
+            alignSelf: "center",
+            alignItems: "center",
+            justifyContent:
+                "center",
+            marginBottom: 30,
+        },
 
-    avatarText: {
-        fontSize: 36,
-        fontWeight: "700",
-        color: colors.white,
-    },
+        avatarText: {
+            fontSize: 36,
+            fontWeight: "700",
+            color: colors.white,
+        },
 
-    section: {
-        marginBottom: 20,
-    },
+        section: {
+            marginBottom: 20,
+        },
 
-    label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: 8,
-    },
+        label: {
+            fontSize: 14,
+            fontWeight: "600",
+            color: colors.text,
+            marginBottom: 8,
+        },
 
-    infoBox: {
-        minHeight: 50,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 10,
-        backgroundColor: colors.white,
-        justifyContent: "center",
-        paddingHorizontal: 15,
-    },
+        infoBox: {
+            minHeight: 50,
+            borderWidth: 1,
+            borderColor:
+                colors.border,
+            borderRadius: 10,
+            backgroundColor:
+                colors.white,
+            justifyContent:
+                "center",
+            paddingHorizontal: 15,
+        },
 
-    value: {
-        fontSize: 16,
-        color: colors.text,
-    },
+        value: {
+            fontSize: 16,
+            color: colors.text,
+        },
 
-    input: {
-        height: 50,
-        borderWidth: 1,
-        borderColor: colors.primary,
-        borderRadius: 10,
-        backgroundColor: colors.white,
-        paddingHorizontal: 15,
-        fontSize: 16,
-        color: colors.text,
-    },
+        input: {
+            height: 50,
+            borderWidth: 1,
+            borderColor:
+                colors.primary,
+            borderRadius: 10,
+            backgroundColor:
+                colors.white,
+            paddingHorizontal: 15,
+            fontSize: 16,
+            color: colors.text,
+        },
 
-    note: {
-        fontSize: 12,
-        color: colors.gray,
-        marginTop: 6,
-    },
+        note: {
+            fontSize: 12,
+            color: colors.gray,
+            marginTop: 6,
+        },
 
-    editButton: {
-        height: 50,
-        backgroundColor: colors.primary,
-        borderRadius: 10,
-        alignItems: "center",
-        justifyContent: "center",
-        marginTop: 5,
-    },
+        editButton: {
+            height: 50,
+            backgroundColor:
+                colors.primary,
+            borderRadius: 10,
+            alignItems: "center",
+            justifyContent:
+                "center",
+            marginTop: 5,
+        },
 
-    editButtonText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.white,
-    },
+        editButtonText: {
+            fontSize: 16,
+            fontWeight: "600",
+            color: colors.white,
+        },
 
-    editActions: {
-        flexDirection: "row",
-        gap: 10,
-        marginTop: 5,
-    },
+        editActions: {
+            flexDirection: "row",
+            gap: 10,
+            marginTop: 5,
+        },
 
-    cancelButton: {
-        flex: 1,
-        height: 50,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 10,
-        backgroundColor: colors.white,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+        cancelButton: {
+            flex: 1,
+            height: 50,
+            borderWidth: 1,
+            borderColor:
+                colors.border,
+            borderRadius: 10,
+            backgroundColor:
+                colors.white,
+            alignItems: "center",
+            justifyContent:
+                "center",
+        },
 
-    cancelButtonText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.text,
-    },
+        cancelButtonText: {
+            fontSize: 16,
+            fontWeight: "600",
+            color: colors.text,
+        },
 
-    saveButton: {
-        flex: 1,
-        height: 50,
-        backgroundColor: colors.primary,
-        borderRadius: 10,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+        saveButton: {
+            flex: 1,
+            height: 50,
+            backgroundColor:
+                colors.primary,
+            borderRadius: 10,
+            alignItems: "center",
+            justifyContent:
+                "center",
+        },
 
-    saveButtonText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.white,
-    },
+        saveButtonText: {
+            fontSize: 16,
+            fontWeight: "600",
+            color: colors.white,
+        },
 
-    logoutButton: {
-        height: 50,
-        borderWidth: 1,
-        borderColor: colors.error,
-        borderRadius: 10,
-        alignItems: "center",
-        justifyContent: "center",
-        marginTop: 20,
-    },
+        logoutButton: {
+            height: 50,
+            borderWidth: 1,
+            borderColor:
+                colors.error,
+            borderRadius: 10,
+            alignItems: "center",
+            justifyContent:
+                "center",
+            marginTop: 20,
+        },
 
-    logoutText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.error,
-    },
-});
+        logoutButtonDisabled: {
+            opacity: 0.6,
+        },
 
+        logoutText: {
+            fontSize: 16,
+            fontWeight: "600",
+            color: colors.error,
+        },
+    });

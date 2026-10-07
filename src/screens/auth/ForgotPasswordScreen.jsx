@@ -1,9 +1,3 @@
-// ========================================
-// FORGOT PASSWORD SCREEN - QUÊN MẬT KHẨU
-// FR-03: Forgot / Reset Password
-//
-
-
 import { useState } from "react";
 
 import {
@@ -13,286 +7,349 @@ import {
     TouchableOpacity,
     StyleSheet,
     ActivityIndicator,
-    Alert,
 } from "react-native";
 
 import colors from "../../styles/colors";
 
-export default function ForgotPasswordScreen({ navigation }) {
+import {
+    apiRequest,
+} from "../../services/api";
 
-    // ========================================
-    // STATE
-    // ========================================
+export default function ForgotPasswordScreen({
+    navigation,
+}) {
+    const [email, setEmail] =
+        useState("");
 
-    const [email, setEmail] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [loading, setLoading] =
+        useState(false);
 
+    const [error, setError] =
+        useState("");
 
-    // ========================================
-    // VALIDATE EMAIL
-    // ========================================
-
-    const validateEmail = (email) => {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const validateEmail = (
+        emailValue
+    ) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+            emailValue
+        );
     };
 
+    const handleSend =
+        async () => {
+            setError("");
 
-    // ========================================
-    // HANDLE SEND
-    // ========================================
+            const normalizedEmail =
+                email
+                    .trim()
+                    .toLowerCase();
 
-    const handleSend = () => {
+            if (!normalizedEmail) {
+                setError(
+                    "Vui lòng nhập email"
+                );
 
-        setError("");
+                return;
+            }
 
+            if (
+                !validateEmail(
+                    normalizedEmail
+                )
+            ) {
+                setError(
+                    "Email không hợp lệ"
+                );
 
-        // Email rỗng
-        if (!email.trim()) {
-            setError("Vui lòng nhập email");
-            return;
-        }
+                return;
+            }
 
+            try {
+                setLoading(true);
 
-        // Email không hợp lệ
-        if (!validateEmail(email)) {
-            setError("Email không hợp lệ");
-            return;
-        }
+                const result =
+                    await apiRequest(
+                        "/auth/forgot-password",
+                        {
+                            method:
+                                "POST",
 
+                            skipAuth:
+                                true,
 
-        // Bắt đầu loading
-        setLoading(true);
+                            body:
+                                JSON.stringify(
+                                    {
+                                        email:
+                                            normalizedEmail,
+                                    }
+                                ),
+                        }
+                    );
 
+                console.log(
+                    "FORGOT PASSWORD SUCCESS:",
+                    {
+                        success:
+                            result.success,
+                        message:
+                            result.message,
+                    }
+                );
 
-        // Mô phỏng gửi yêu cầu reset
-        setTimeout(() => {
+                const resetToken =
+                    result?.data
+                        ?.resetToken;
 
-            setLoading(false);
+                if (!resetToken) {
+                    throw new Error(
+                        "Backend không trả về reset token."
+                    );
+                }
 
+                navigation.navigate(
+                    "ResetPassword",
+                    {
+                        email:
+                            normalizedEmail,
+                        resetToken,
+                    }
+                );
+            } catch (error) {
+                console.log(
+                    "FORGOT PASSWORD ERROR:",
+                    error.message
+                );
 
-            // Chuyển sang Reset Password
-            navigation.navigate("ResetPassword", {
-                email: email,
-            });
-
-        }, 1500);
-    };
-
+                setError(
+                    error.message ||
+                        "Không thể gửi yêu cầu đặt lại mật khẩu."
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
 
     return (
-        <View style={styles.container}>
-
-            {/* ========================================
-                TITLE
-            ======================================== */}
-
-            <Text style={styles.title}>
+        <View
+            style={
+                styles.container
+            }
+        >
+            <Text
+                style={styles.title}
+            >
                 Quên mật khẩu?
             </Text>
 
-
-            {/* ========================================
-                DESCRIPTION
-            ======================================== */}
-
-            <Text style={styles.subtitle}>
-                Nhập email của bạn để tiếp tục
-                đặt lại mật khẩu.
+            <Text
+                style={
+                    styles.subtitle
+                }
+            >
+                Nhập email của bạn
+                để tiếp tục đặt lại
+                mật khẩu.
             </Text>
 
-
-            {/* ========================================
-                EMAIL
-            ======================================== */}
-
-            <View style={styles.inputGroup}>
-
-                <Text style={styles.label}>
+            <View
+                style={
+                    styles.inputGroup
+                }
+            >
+                <Text
+                    style={
+                        styles.label
+                    }
+                >
                     Email
                 </Text>
 
                 <TextInput
                     style={[
                         styles.input,
-                        error && styles.inputError,
+                        error &&
+                            styles.inputError,
                     ]}
                     placeholder="Nhập email của bạn"
-                    placeholderTextColor={colors.gray}
+                    placeholderTextColor={
+                        colors.gray
+                    }
                     value={email}
-                    onChangeText={(text) => {
-                        setEmail(text);
+                    onChangeText={(
+                        text
+                    ) => {
+                        setEmail(
+                            text
+                        );
+
                         setError("");
                     }}
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!loading}
+                    autoCorrect={
+                        false
+                    }
+                    editable={
+                        !loading
+                    }
                 />
 
                 {error !== "" && (
-                    <Text style={styles.errorText}>
+                    <Text
+                        style={
+                            styles.errorText
+                        }
+                    >
                         {error}
                     </Text>
                 )}
-
             </View>
-
-
-            {/* ========================================
-                SEND BUTTON
-            ======================================== */}
 
             <TouchableOpacity
                 style={[
                     styles.sendButton,
-                    loading && styles.buttonDisabled,
+                    loading &&
+                        styles.buttonDisabled,
                 ]}
-                onPress={handleSend}
+                onPress={
+                    handleSend
+                }
                 disabled={loading}
             >
-
                 {loading ? (
-
                     <ActivityIndicator
-                        color={colors.white}
+                        color={
+                            colors.white
+                        }
                     />
-
                 ) : (
-
-                    <Text style={styles.sendButtonText}>
+                    <Text
+                        style={
+                            styles.sendButtonText
+                        }
+                    >
                         Tiếp tục
                     </Text>
-
                 )}
-
             </TouchableOpacity>
-
-
-            {/* ========================================
-                BACK TO LOGIN
-            ======================================== */}
 
             <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.navigate("Login")}
+                style={
+                    styles.backButton
+                }
+                onPress={() =>
+                    navigation.navigate(
+                        "Login"
+                    )
+                }
                 disabled={loading}
             >
-
-                <Text style={styles.backText}>
+                <Text
+                    style={
+                        styles.backText
+                    }
+                >
                     Quay lại đăng nhập
                 </Text>
-
             </TouchableOpacity>
-
         </View>
     );
 }
 
+const styles =
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor:
+                colors.background,
+            justifyContent:
+                "center",
+            padding: 20,
+        },
 
-// ========================================
-// STYLES
-// ========================================
+        title: {
+            fontSize: 28,
+            lineHeight: 34,
+            fontWeight: "700",
+            color: colors.text,
+            textAlign: "center",
+        },
 
-const styles = StyleSheet.create({
+        subtitle: {
+            fontSize: 14,
+            lineHeight: 20,
+            color: colors.gray,
+            textAlign: "center",
+            marginTop: 8,
+            marginBottom: 32,
+        },
 
-    container: {
-        flex: 1,
-        backgroundColor: colors.background,
-        justifyContent: "center",
-        padding: 20,
-    },
+        inputGroup: {
+            marginBottom: 18,
+        },
 
+        label: {
+            fontSize: 14,
+            fontWeight: "600",
+            color: colors.text,
+            marginBottom: 8,
+        },
 
-    title: {
-        fontSize: 28,
-        lineHeight: 34,
-        fontWeight: "700",
-        color: colors.text,
-        textAlign: "center",
-    },
+        input: {
+            height: 48,
+            backgroundColor:
+                colors.white,
+            borderWidth: 1,
+            borderColor:
+                colors.border,
+            borderRadius: 10,
+            paddingHorizontal: 14,
+            fontSize: 16,
+            color: colors.text,
+        },
 
+        inputError: {
+            borderColor:
+                colors.error,
+        },
 
-    subtitle: {
-        fontSize: 14,
-        lineHeight: 20,
-        color: colors.gray,
-        textAlign: "center",
-        marginTop: 8,
-        marginBottom: 32,
-    },
+        errorText: {
+            fontSize: 14,
+            lineHeight: 20,
+            color: colors.error,
+            marginTop: 6,
+        },
 
+        sendButton: {
+            height: 48,
+            backgroundColor:
+                colors.primary,
+            borderRadius: 10,
+            alignItems: "center",
+            justifyContent:
+                "center",
+            marginTop: 4,
+        },
 
-    inputGroup: {
-        marginBottom: 18,
-    },
+        buttonDisabled: {
+            opacity: 0.7,
+        },
 
+        sendButtonText: {
+            fontSize: 16,
+            fontWeight: "600",
+            color: colors.white,
+        },
 
-    label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: 8,
-    },
+        backButton: {
+            alignItems: "center",
+            marginTop: 24,
+        },
 
-
-    input: {
-        height: 48,
-        backgroundColor: colors.white,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 10,
-        paddingHorizontal: 14,
-        fontSize: 16,
-        color: colors.text,
-    },
-
-
-    inputError: {
-        borderColor: colors.error,
-    },
-
-
-    errorText: {
-        fontSize: 14,
-        lineHeight: 20,
-        color: colors.error,
-        marginTop: 6,
-    },
-
-
-    sendButton: {
-        height: 48,
-        backgroundColor: colors.primary,
-        borderRadius: 10,
-        alignItems: "center",
-        justifyContent: "center",
-        marginTop: 4,
-    },
-
-
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-
-
-    sendButtonText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.white,
-    },
-
-
-    backButton: {
-        alignItems: "center",
-        marginTop: 24,
-    },
-
-
-    backText: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: colors.primary,
-    },
-
-});
+        backText: {
+            fontSize: 14,
+            fontWeight: "600",
+            color: colors.primary,
+        },
+    });

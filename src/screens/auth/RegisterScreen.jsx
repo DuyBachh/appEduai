@@ -15,146 +15,212 @@ import {
 
 import colors from "../../styles/colors";
 
-export default function RegisterScreen({ navigation }) {
+import {
+    apiRequest,
+} from "../../services/api";
 
-    // ========================================
-    // STATE
-    // ========================================
+export default function RegisterScreen({
+    navigation,
+}) {
+    const [name, setName] =
+        useState("");
 
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
+    const [email, setEmail] =
+        useState("");
 
-    const [loading, setLoading] = useState(false);
+    const [password, setPassword] =
+        useState("");
 
-    // Error message
-    const [errorMessage, setErrorMessage] = useState("");
+    const [
+        confirmPassword,
+        setConfirmPassword,
+    ] = useState("");
 
-    // Hiện / ẩn mật khẩu
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] =
+    const [loading, setLoading] =
         useState(false);
 
+    const [
+        errorMessage,
+        setErrorMessage,
+    ] = useState("");
 
-    // ========================================
-    // VALIDATION
-    // ========================================
+    const [
+        showPassword,
+        setShowPassword,
+    ] = useState(false);
 
-    const validateEmail = (email) => {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const [
+        showConfirmPassword,
+        setShowConfirmPassword,
+    ] = useState(false);
+
+    const validateEmail = (
+        emailValue
+    ) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+            emailValue
+        );
     };
 
-    const validatePassword = (password) => {
-        return password.length >= 6;
+    const validatePassword = (
+        passwordValue
+    ) => {
+        return (
+            passwordValue.length >= 6
+        );
     };
 
-    const validateConfirmPassword = (confirmPassword) => {
-        return confirmPassword === password;
+    const validateConfirmPassword = (
+        confirmPasswordValue
+    ) => {
+        return (
+            confirmPasswordValue ===
+            password
+        );
     };
 
+    const handleRegister =
+        async () => {
+            setErrorMessage("");
 
-    // ========================================
-    // REGISTER
-    // ========================================
+            const normalizedName =
+                name.trim();
 
-    const handleRegister = () => {
+            const normalizedEmail =
+                email
+                    .trim()
+                    .toLowerCase();
 
-        // Xóa lỗi cũ
-        setErrorMessage("");
+            if (!normalizedName) {
+                setErrorMessage(
+                    "Vui lòng nhập tên"
+                );
 
+                return;
+            }
 
-        // ========================================
-        // KIỂM TRA EMAIL
-        // ========================================
+            if (!normalizedEmail) {
+                setErrorMessage(
+                    "Vui lòng nhập email"
+                );
 
-        if (!email.trim()) {
-            setErrorMessage("Vui lòng nhập email");
-            return;
-        }
+                return;
+            }
 
-        if (!validateEmail(email)) {
-            setErrorMessage("Email không hợp lệ");
-            return;
-        }
+            if (
+                !validateEmail(
+                    normalizedEmail
+                )
+            ) {
+                setErrorMessage(
+                    "Email không hợp lệ"
+                );
 
+                return;
+            }
 
-        // ========================================
-        // KIỂM TRA PASSWORD
-        // ========================================
+            if (!password) {
+                setErrorMessage(
+                    "Vui lòng nhập mật khẩu"
+                );
 
-        if (!password) {
-            setErrorMessage("Vui lòng nhập mật khẩu");
-            return;
-        }
+                return;
+            }
 
-        if (!validatePassword(password)) {
-            setErrorMessage(
-                "Mật khẩu phải có ít nhất 6 ký tự"
-            );
-            return;
-        }
+            if (
+                !validatePassword(
+                    password
+                )
+            ) {
+                setErrorMessage(
+                    "Mật khẩu phải có ít nhất 6 ký tự"
+                );
 
+                return;
+            }
 
-        // ========================================
-        // KIỂM TRA CONFIRM PASSWORD
-        // ========================================
+            if (!confirmPassword) {
+                setErrorMessage(
+                    "Vui lòng xác nhận mật khẩu"
+                );
 
-        if (!confirmPassword) {
-            setErrorMessage(
-                "Vui lòng xác nhận mật khẩu"
-            );
-            return;
-        }
+                return;
+            }
 
-        if (!validateConfirmPassword(confirmPassword)) {
-            setErrorMessage(
-                "Mật khẩu xác nhận không khớp"
-            );
-            return;
-        }
+            if (
+                !validateConfirmPassword(
+                    confirmPassword
+                )
+            ) {
+                setErrorMessage(
+                    "Mật khẩu xác nhận không khớp"
+                );
 
+                return;
+            }
 
-        // ========================================
-        // DỮ LIỆU HỢP LỆ
-        // ========================================
+            try {
+                setLoading(true);
 
-        setErrorMessage("");
+                const result =
+                    await apiRequest(
+                        "/auth/register",
+                        {
+                            method:
+                                "POST",
 
+                            skipAuth:
+                                true,
 
-        // ========================================
-        // BẮT ĐẦU LOADING
-        // ========================================
+                            body:
+                                JSON.stringify(
+                                    {
+                                        name:
+                                            normalizedName,
+                                        email:
+                                            normalizedEmail,
+                                        password,
+                                    }
+                                ),
+                        }
+                    );
 
-        setLoading(true);
+                console.log(
+                    "REGISTER SUCCESS:",
+                    result
+                );
 
+                Alert.alert(
+                    "Đăng ký thành công",
+                    result.message ||
+                        "Tài khoản của bạn đã được tạo.",
+                    [
+                        {
+                            text:
+                                "Đăng nhập",
 
-        // ========================================
-        // GIẢ LẬP QUÁ TRÌNH ĐĂNG KÝ
-        // ========================================
+                            onPress:
+                                () =>
+                                    navigation.replace(
+                                        "Login"
+                                    ),
+                        },
+                    ]
+                );
+            } catch (error) {
+                console.log(
+                    "REGISTER ERROR:",
+                    error.message
+                );
 
-        setTimeout(() => {
-
-            setLoading(false);
-
-            Alert.alert(
-                "Đăng ký thành công",
-                "Tài khoản của bạn đã được tạo.",
-                [
-                    {
-                        text: "Đăng nhập",
-                        onPress: () =>
-                            navigation.navigate("Login"),
-                    },
-                ]
-            );
-
-        }, 2000);
-    };
-
-
-    // ========================================
-    // RENDER
-    // ========================================
+                setErrorMessage(
+                    error.message ||
+                        "Đăng ký thất bại."
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
 
     return (
         <KeyboardAvoidingView
@@ -165,204 +231,316 @@ export default function RegisterScreen({ navigation }) {
                     : undefined
             }
         >
-
             <ScrollView
-                contentContainerStyle={styles.content}
+                contentContainerStyle={
+                    styles.content
+                }
                 keyboardShouldPersistTaps="handled"
             >
-
-                {/* ========================================
-                    LOGO
-                ======================================== */}
-
-                <Text style={styles.logo}>
+                <Text
+                    style={styles.logo}
+                >
                     Education Ai
                 </Text>
 
-
-                {/* ========================================
-                    TITLE
-                ======================================== */}
-
-                <Text style={styles.title}>
+                <Text
+                    style={styles.title}
+                >
                     Tạo tài khoản
                 </Text>
 
-                <Text style={styles.subtitle}>
-                    Bắt đầu học tập cùng AI
+                <Text
+                    style={
+                        styles.subtitle
+                    }
+                >
+                    Bắt đầu học tập cùng
+                    AI
                 </Text>
 
-
-                {/* ========================================
-                    ERROR MESSAGE
-                ======================================== */}
-
                 {errorMessage ? (
-                    <View style={styles.errorBox}>
-                        <Text style={styles.errorText}>
-                            {errorMessage}
+                    <View
+                        style={
+                            styles.errorBox
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.errorText
+                            }
+                        >
+                            {
+                                errorMessage
+                            }
                         </Text>
                     </View>
                 ) : null}
 
+                <View
+                    style={
+                        styles.inputGroup
+                    }
+                >
+                    <Text
+                        style={
+                            styles.label
+                        }
+                    >
+                        Tên
+                    </Text>
 
-                {/* ========================================
-                    EMAIL
-                ======================================== */}
+                    <TextInput
+                        style={
+                            styles.input
+                        }
+                        placeholder="Nhập tên của bạn"
+                        placeholderTextColor={
+                            colors.gray
+                        }
+                        value={name}
+                        onChangeText={(
+                            text
+                        ) => {
+                            setName(
+                                text
+                            );
 
-                <View style={styles.inputGroup}>
+                            setErrorMessage(
+                                ""
+                            );
+                        }}
+                        autoCapitalize="words"
+                        editable={
+                            !loading
+                        }
+                    />
+                </View>
 
-                    <Text style={styles.label}>
+                <View
+                    style={
+                        styles.inputGroup
+                    }
+                >
+                    <Text
+                        style={
+                            styles.label
+                        }
+                    >
                         Email
                     </Text>
 
                     <TextInput
                         style={[
                             styles.input,
+
                             email &&
-                                !validateEmail(email) &&
+                                !validateEmail(
+                                    email
+                                ) &&
                                 styles.inputError,
                         ]}
                         placeholder="Nhập email của bạn"
-                        placeholderTextColor={colors.gray}
+                        placeholderTextColor={
+                            colors.gray
+                        }
                         value={email}
-                        onChangeText={(text) => {
-                            setEmail(text);
-                            setErrorMessage("");
+                        onChangeText={(
+                            text
+                        ) => {
+                            setEmail(
+                                text
+                            );
+
+                            setErrorMessage(
+                                ""
+                            );
                         }}
                         keyboardType="email-address"
                         autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!loading}
+                        autoCorrect={
+                            false
+                        }
+                        editable={
+                            !loading
+                        }
                     />
-
                 </View>
 
-
-                {/* ========================================
-                    PASSWORD
-                ======================================== */}
-
-                <View style={styles.inputGroup}>
-
-                    <Text style={styles.label}>
+                <View
+                    style={
+                        styles.inputGroup
+                    }
+                >
+                    <Text
+                        style={
+                            styles.label
+                        }
+                    >
                         Mật khẩu
                     </Text>
 
-                    <View style={styles.passwordContainer}>
-
+                    <View
+                        style={
+                            styles.passwordContainer
+                        }
+                    >
                         <TextInput
-                            style={styles.passwordInput}
+                            style={
+                                styles.passwordInput
+                            }
                             placeholder="Nhập mật khẩu"
-                            placeholderTextColor={colors.gray}
-                            value={password}
-                            onChangeText={(text) => {
-                                setPassword(text);
-                                setErrorMessage("");
+                            placeholderTextColor={
+                                colors.gray
+                            }
+                            value={
+                                password
+                            }
+                            onChangeText={(
+                                text
+                            ) => {
+                                setPassword(
+                                    text
+                                );
+
+                                setErrorMessage(
+                                    ""
+                                );
                             }}
-                            secureTextEntry={!showPassword}
+                            secureTextEntry={
+                                !showPassword
+                            }
                             autoCapitalize="none"
-                            autoCorrect={false}
-                            editable={!loading}
+                            autoCorrect={
+                                false
+                            }
+                            editable={
+                                !loading
+                            }
                         />
 
                         <TouchableOpacity
-                            style={styles.eyeButton}
+                            style={
+                                styles.eyeButton
+                            }
                             onPress={() =>
                                 setShowPassword(
                                     !showPassword
                                 )
                             }
-                            disabled={loading}
+                            disabled={
+                                loading
+                            }
                         >
-
-                            <Text style={styles.eyeIcon}>
+                            <Text
+                                style={
+                                    styles.eyeIcon
+                                }
+                            >
                                 {showPassword
                                     ? "🙈"
                                     : "👁️"}
                             </Text>
-
                         </TouchableOpacity>
-
                     </View>
-
                 </View>
 
-
-                {/* ========================================
-                    CONFIRM PASSWORD
-                ======================================== */}
-
-                <View style={styles.inputGroup}>
-
-                    <Text style={styles.label}>
+                <View
+                    style={
+                        styles.inputGroup
+                    }
+                >
+                    <Text
+                        style={
+                            styles.label
+                        }
+                    >
                         Xác nhận mật khẩu
                     </Text>
 
-                    <View style={styles.passwordContainer}>
-
+                    <View
+                        style={
+                            styles.passwordContainer
+                        }
+                    >
                         <TextInput
-                            style={styles.passwordInput}
+                            style={
+                                styles.passwordInput
+                            }
                             placeholder="Nhập lại mật khẩu"
-                            placeholderTextColor={colors.gray}
-                            value={confirmPassword}
-                            onChangeText={(text) => {
-                                setConfirmPassword(text);
-                                setErrorMessage("");
+                            placeholderTextColor={
+                                colors.gray
+                            }
+                            value={
+                                confirmPassword
+                            }
+                            onChangeText={(
+                                text
+                            ) => {
+                                setConfirmPassword(
+                                    text
+                                );
+
+                                setErrorMessage(
+                                    ""
+                                );
                             }}
                             secureTextEntry={
                                 !showConfirmPassword
                             }
                             autoCapitalize="none"
-                            autoCorrect={false}
-                            editable={!loading}
+                            autoCorrect={
+                                false
+                            }
+                            editable={
+                                !loading
+                            }
                         />
 
                         <TouchableOpacity
-                            style={styles.eyeButton}
+                            style={
+                                styles.eyeButton
+                            }
                             onPress={() =>
                                 setShowConfirmPassword(
                                     !showConfirmPassword
                                 )
                             }
-                            disabled={loading}
+                            disabled={
+                                loading
+                            }
                         >
-
-                            <Text style={styles.eyeIcon}>
+                            <Text
+                                style={
+                                    styles.eyeIcon
+                                }
+                            >
                                 {showConfirmPassword
                                     ? "🙈"
                                     : "👁️"}
                             </Text>
-
                         </TouchableOpacity>
-
                     </View>
-
                 </View>
-
-
-                {/* ========================================
-                    REGISTER BUTTON
-                ======================================== */}
 
                 <TouchableOpacity
                     style={[
                         styles.registerButton,
+
                         loading &&
                             styles.buttonDisabled,
                     ]}
-                    onPress={handleRegister}
+                    onPress={
+                        handleRegister
+                    }
                     disabled={loading}
                 >
-
                     {loading ? (
-
                         <ActivityIndicator
-                            color={colors.white}
+                            color={
+                                colors.white
+                            }
                         />
-
                     ) : (
-
                         <Text
                             style={
                                 styles.registerButtonText
@@ -370,70 +548,58 @@ export default function RegisterScreen({ navigation }) {
                         >
                             Đăng ký
                         </Text>
-
                     )}
-
                 </TouchableOpacity>
 
-
-                {/* ========================================
-                    LOGIN LINK
-                ======================================== */}
-
-                <View style={styles.loginContainer}>
-
-                    <Text style={styles.loginText}>
+                <View
+                    style={
+                        styles.loginContainer
+                    }
+                >
+                    <Text
+                        style={
+                            styles.loginText
+                        }
+                    >
                         Đã có tài khoản?
                     </Text>
 
                     <TouchableOpacity
                         onPress={() =>
-                            navigation.navigate("Login")
+                            navigation.navigate(
+                                "Login"
+                            )
                         }
-                        disabled={loading}
+                        disabled={
+                            loading
+                        }
                     >
-
-                        <Text style={styles.loginLink}>
+                        <Text
+                            style={
+                                styles.loginLink
+                            }
+                        >
                             Đăng nhập
                         </Text>
-
                     </TouchableOpacity>
-
                 </View>
-
             </ScrollView>
-
         </KeyboardAvoidingView>
     );
 }
 
-
-// ========================================
-// STYLES
-// ========================================
-
 const styles = StyleSheet.create({
-
-    // ========================================
-    // CONTAINER
-    // ========================================
-
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor:
+            colors.background,
     },
-
 
     content: {
         flexGrow: 1,
         justifyContent: "center",
         padding: 20,
     },
-
-
-    // ========================================
-    // LOGO
-    // ========================================
 
     logo: {
         fontSize: 24,
@@ -443,11 +609,6 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
 
-
-    // ========================================
-    // TITLE
-    // ========================================
-
     title: {
         fontSize: 28,
         lineHeight: 34,
@@ -455,7 +616,6 @@ const styles = StyleSheet.create({
         color: colors.text,
         textAlign: "center",
     },
-
 
     subtitle: {
         fontSize: 14,
@@ -466,20 +626,16 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
 
-
-    // ========================================
-    // ERROR
-    // ========================================
-
     errorBox: {
-        backgroundColor: "#FEF2F2",
+        backgroundColor:
+            "#FEF2F2",
         borderWidth: 1,
-        borderColor: colors.error,
+        borderColor:
+            colors.error,
         borderRadius: 8,
         padding: 10,
         marginBottom: 16,
     },
-
 
     errorText: {
         fontSize: 14,
@@ -487,15 +643,9 @@ const styles = StyleSheet.create({
         color: colors.error,
     },
 
-
-    // ========================================
-    // INPUT
-    // ========================================
-
     inputGroup: {
         marginBottom: 18,
     },
-
 
     label: {
         fontSize: 14,
@@ -504,38 +654,35 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
 
-
     input: {
         height: 48,
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         borderRadius: 10,
         paddingHorizontal: 14,
         fontSize: 16,
         color: colors.text,
     },
 
-
     inputError: {
-        borderColor: colors.error,
+        borderColor:
+            colors.error,
     },
-
-
-    // ========================================
-    // PASSWORD INPUT
-    // ========================================
 
     passwordContainer: {
         height: 48,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         borderRadius: 10,
     },
-
 
     passwordInput: {
         flex: 1,
@@ -545,7 +692,6 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
 
-
     eyeButton: {
         height: "100%",
         paddingHorizontal: 12,
@@ -553,30 +699,23 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
 
-
     eyeIcon: {
         fontSize: 20,
     },
 
-
-    // ========================================
-    // REGISTER BUTTON
-    // ========================================
-
     registerButton: {
         height: 48,
-        backgroundColor: colors.primary,
+        backgroundColor:
+            colors.primary,
         borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",
         marginTop: 8,
     },
 
-
     buttonDisabled: {
         opacity: 0.7,
     },
-
 
     registerButtonText: {
         fontSize: 16,
@@ -584,23 +723,16 @@ const styles = StyleSheet.create({
         color: colors.white,
     },
 
-
-    // ========================================
-    // LOGIN
-    // ========================================
-
     loginContainer: {
         flexDirection: "row",
         justifyContent: "center",
         marginTop: 24,
     },
 
-
     loginText: {
         fontSize: 14,
         color: colors.gray,
     },
-
 
     loginLink: {
         fontSize: 14,
@@ -608,6 +740,4 @@ const styles = StyleSheet.create({
         color: colors.primary,
         marginLeft: 5,
     },
-
 });
-

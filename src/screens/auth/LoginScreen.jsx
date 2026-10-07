@@ -10,121 +10,164 @@ import {
     Platform,
     ScrollView,
     ActivityIndicator,
-    Alert,
 } from "react-native";
 
 import colors from "../../styles/colors";
 
-export default function LoginScreen({ navigation, onLogin }) {
-    // ========================================
-    // STATE
-    // ========================================
+import {
+    apiRequest,
+} from "../../services/api";
 
-    // Lưu email
-    const [email, setEmail] = useState("");
+import {
+    saveToken,
+} from "../../services/tokenStorage";
 
-    // Lưu password
-    const [password, setPassword] = useState("");
+export default function LoginScreen({
+    navigation,
+    onLogin,
+}) {
+    const [email, setEmail] =
+        useState("");
 
-    // Trạng thái loading
-    const [loading, setLoading] = useState(false);
+    const [password, setPassword] =
+        useState("");
 
-    // Lưu lỗi đăng nhập
-    const [loginError, setLoginError] = useState("");
+    const [loading, setLoading] =
+        useState(false);
 
-    // Hiện thị mật khẩu
-    const [showPassword, setShowPassword] = useState(false);
+    const [loginError, setLoginError] =
+        useState("");
 
-    // ========================================
-    // VALIDATE EMAIL
-    // ========================================
+    const [
+        showPassword,
+        setShowPassword,
+    ] = useState(false);
 
-    const validateEmail = (email) => {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const validateEmail = (
+        emailValue
+    ) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+            emailValue
+        );
     };
 
-    // ========================================
-    // VALIDATE PASSWORD
-    // ========================================
-
-    const validatePassword = (password) => {
-        return password.length >= 6;
+    const validatePassword = (
+        passwordValue
+    ) => {
+        return (
+            passwordValue.length >= 6
+        );
     };
 
-    // ========================================
-    // HANDLE LOGIN
-    // ========================================
-
-    const handleLogin = () => {
-        // Xóa lỗi cũ
+    const handleLogin = async () => {
         setLoginError("");
 
-        // Kiểm tra email rỗng
-        if (!email.trim()) {
-            setLoginError("Vui lòng nhập email");
+        const normalizedEmail =
+            email
+                .trim()
+                .toLowerCase();
+
+        if (!normalizedEmail) {
+            setLoginError(
+                "Vui lòng nhập email"
+            );
+
             return;
         }
 
-        // Kiểm tra email hợp lệ
-        if (!validateEmail(email)) {
-            setLoginError("Email không hợp lệ");
+        if (
+            !validateEmail(
+                normalizedEmail
+            )
+        ) {
+            setLoginError(
+                "Email không hợp lệ"
+            );
+
             return;
         }
 
-        // Kiểm tra password rỗng
         if (!password) {
-            setLoginError("Vui lòng nhập mật khẩu");
+            setLoginError(
+                "Vui lòng nhập mật khẩu"
+            );
+
             return;
         }
 
-        // Kiểm tra password
-        if (!validatePassword(password)) {
+        if (
+            !validatePassword(password)
+        ) {
             setLoginError(
                 "Mật khẩu phải có ít nhất 6 ký tự"
             );
+
             return;
         }
 
-        // ========================================
-        // BẮT ĐẦU LOGIN
-        // ========================================
+        try {
+            setLoading(true);
 
-        setLoading(true);
+            const result =
+                await apiRequest(
+                    "/auth/login",
+                    {
+                        method: "POST",
 
-        // Mô phỏng gọi API Backend
-        setTimeout(() => {
-            setLoading(false);
+                        skipAuth: true,
 
-            // ========================================
-            // TÀI KHOẢN DEMO
-            // ========================================
+                        body:
+                            JSON.stringify(
+                                {
+                                    email:
+                                        normalizedEmail,
+                                    password,
+                                }
+                            ),
+                    }
+                );
 
-            if (
-                email.trim().toLowerCase() === "test@gmail.com" &&
-                password === "123456"
-            ) {
-                
-                onLogin();
-                        
-            } else {
-                setLoginError(
-                    "Email hoặc mật khẩu không chính xác"
+            const token =
+                result?.data?.token;
+
+            const user =
+                result?.data?.user;
+
+            if (!token) {
+                throw new Error(
+                    "Backend không trả về token."
                 );
             }
-        }, 2000);
+
+            await saveToken(token);
+
+            console.log(
+                "LOGIN SUCCESS:",
+                user
+            );
+
+            onLogin(user);
+        } catch (error) {
+            console.log(
+                "LOGIN ERROR:",
+                error.message
+            );
+
+            setLoginError(
+                error.message ||
+                    "Đăng nhập thất bại."
+            );
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // ========================================
-    // FORGOT PASSWORD
-    // ========================================
-
-    const handleForgotPassword = () => {
-        navigation.navigate("ForgotPassword");
-    };
-
-    // ========================================
-    // UI
-    // ========================================
+    const handleForgotPassword =
+        () => {
+            navigation.navigate(
+                "ForgotPassword"
+            );
+        };
 
     return (
         <KeyboardAvoidingView
@@ -136,205 +179,295 @@ export default function LoginScreen({ navigation, onLogin }) {
             }
         >
             <ScrollView
-                contentContainerStyle={styles.content}
+                contentContainerStyle={
+                    styles.content
+                }
                 keyboardShouldPersistTaps="handled"
             >
-                {/* ========================================
-                    LOGO
-                ======================================== */}
-
-                <Text style={styles.logo}>
+                <Text
+                    style={styles.logo}
+                >
                     appEduai
                 </Text>
 
-                {/* ========================================
-                    TITLE
-                ======================================== */}
-
-                <Text style={styles.title}>
+                <Text
+                    style={styles.title}
+                >
                     Đăng nhập
                 </Text>
 
-                <Text style={styles.subtitle}>
-                    Đăng nhập để tiếp tục học tập cùng AI
+                <Text
+                    style={
+                        styles.subtitle
+                    }
+                >
+                    Đăng nhập để tiếp
+                    tục học tập cùng AI
                 </Text>
 
-                {/* ========================================
-                    EMAIL
-                ======================================== */}
-
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
+                <View
+                    style={
+                        styles.inputGroup
+                    }
+                >
+                    <Text
+                        style={
+                            styles.label
+                        }
+                    >
                         Email
                     </Text>
 
                     <TextInput
                         style={[
                             styles.input,
+
                             email &&
-                                !validateEmail(email) &&
+                                !validateEmail(
+                                    email
+                                ) &&
                                 styles.inputError,
                         ]}
                         placeholder="Nhập email của bạn"
-                        placeholderTextColor={colors.gray}
+                        placeholderTextColor={
+                            colors.gray
+                        }
                         value={email}
-                        onChangeText={(text) => {
-                            setEmail(text);
-                            setLoginError("");
+                        onChangeText={(
+                            text
+                        ) => {
+                            setEmail(
+                                text
+                            );
+
+                            setLoginError(
+                                ""
+                            );
                         }}
                         keyboardType="email-address"
                         autoCapitalize="none"
-                        autoCorrect={false}
+                        autoCorrect={
+                            false
+                        }
+                        editable={
+                            !loading
+                        }
                     />
 
-                    {email && !validateEmail(email) && (
-                        <Text style={styles.errorText}>
-                            Email không hợp lệ
-                        </Text>
-                    )}
+                    {email &&
+                        !validateEmail(
+                            email
+                        ) && (
+                            <Text
+                                style={
+                                    styles.errorText
+                                }
+                            >
+                                Email
+                                không
+                                hợp lệ
+                            </Text>
+                        )}
                 </View>
 
-
-                {/* ========================================
-                    PASSWORD
-                ======================================== */}
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>
+                <View
+                    style={
+                        styles.inputGroup
+                    }
+                >
+                    <Text
+                        style={
+                            styles.label
+                        }
+                    >
                         Mật khẩu
                     </Text>
 
                     <View
                         style={[
                             styles.passwordContainer,
+
                             password &&
-                                !validatePassword(password) &&
+                                !validatePassword(
+                                    password
+                                ) &&
                                 styles.inputError,
                         ]}
                     >
                         <TextInput
-                            style={styles.passwordInput}
+                            style={
+                                styles.passwordInput
+                            }
                             placeholder="Nhập mật khẩu"
-                            placeholderTextColor={colors.gray}
-                            value={password}
-                            onChangeText={(text) => {
-                                setPassword(text);
-                                setLoginError("");
+                            placeholderTextColor={
+                                colors.gray
+                            }
+                            value={
+                                password
+                            }
+                            onChangeText={(
+                                text
+                            ) => {
+                                setPassword(
+                                    text
+                                );
+
+                                setLoginError(
+                                    ""
+                                );
                             }}
-                            secureTextEntry={!showPassword}
+                            secureTextEntry={
+                                !showPassword
+                            }
                             autoCapitalize="none"
-                            autoCorrect={false}
+                            autoCorrect={
+                                false
+                            }
+                            editable={
+                                !loading
+                            }
                         />
 
                         <TouchableOpacity
-                            style={styles.eyeButton}
-                            onPress={() =>
-                                setShowPassword(!showPassword)
+                            style={
+                                styles.eyeButton
                             }
-                            disabled={loading}
+                            onPress={() =>
+                                setShowPassword(
+                                    !showPassword
+                                )
+                            }
+                            disabled={
+                                loading
+                            }
                         >
-                            <Text style={styles.eyeIcon}>
-                                {showPassword ? "🙈" : "👁️"}
+                            <Text
+                                style={
+                                    styles.eyeIcon
+                                }
+                            >
+                                {showPassword
+                                    ? "🙈"
+                                    : "👁️"}
                             </Text>
                         </TouchableOpacity>
                     </View>
 
                     {password &&
-                        !validatePassword(password) && (
-                            <Text style={styles.errorText}>
-                                Mật khẩu phải có ít nhất 6 ký tự
+                        !validatePassword(
+                            password
+                        ) && (
+                            <Text
+                                style={
+                                    styles.errorText
+                                }
+                            >
+                                Mật khẩu
+                                phải có ít
+                                nhất 6 ký
+                                tự
                             </Text>
                         )}
                 </View>
 
-
-
-                {/* ========================================
-                    FORGOT PASSWORD
-                ======================================== */}
-
                 <TouchableOpacity
-                    style={styles.forgotContainer}
-                    onPress={handleForgotPassword}
+                    style={
+                        styles.forgotContainer
+                    }
+                    onPress={
+                        handleForgotPassword
+                    }
                     disabled={loading}
                 >
-                    <Text style={styles.forgotText}>
+                    <Text
+                        style={
+                            styles.forgotText
+                        }
+                    >
                         Quên mật khẩu?
                     </Text>
                 </TouchableOpacity>
 
-                {/* ========================================
-                    ERROR MESSAGE
-                ======================================== */}
-
-                {loginError !== "" && (
-                    <View style={styles.errorContainer}>
-                        <Text style={styles.errorText}>
-                            {loginError}
+                {loginError !==
+                    "" && (
+                    <View
+                        style={
+                            styles.errorContainer
+                        }
+                    >
+                        <Text
+                            style={
+                                styles.errorText
+                            }
+                        >
+                            {
+                                loginError
+                            }
                         </Text>
                     </View>
                 )}
 
-                {/* ========================================
-                    LOGIN BUTTON
-                ======================================== */}
-
                 <TouchableOpacity
                     style={[
                         styles.loginButton,
+
                         loading &&
                             styles.loginButtonDisabled,
                     ]}
-                    onPress={handleLogin}
+                    onPress={
+                        handleLogin
+                    }
                     disabled={loading}
                 >
                     {loading ? (
                         <ActivityIndicator
-                            color={colors.white}
+                            color={
+                                colors.white
+                            }
                         />
                     ) : (
-                        <Text style={styles.loginButtonText}>
+                        <Text
+                            style={
+                                styles.loginButtonText
+                            }
+                        >
                             Đăng nhập
                         </Text>
                     )}
                 </TouchableOpacity>
 
-                {/* ========================================
-                    REGISTER LINK
-                ======================================== */}
-
-                <View style={styles.registerContainer}>
-                    <Text style={styles.registerText}>
-                        Chưa có tài khoản?
+                <View
+                    style={
+                        styles.registerContainer
+                    }
+                >
+                    <Text
+                        style={
+                            styles.registerText
+                        }
+                    >
+                        Chưa có tài
+                        khoản?
                     </Text>
 
                     <TouchableOpacity
                         onPress={() =>
-                            navigation.navigate("Register")
+                            navigation.navigate(
+                                "Register"
+                            )
                         }
-                        disabled={loading}
+                        disabled={
+                            loading
+                        }
                     >
-                        <Text style={styles.registerLink}>
+                        <Text
+                            style={
+                                styles.registerLink
+                            }
+                        >
                             Đăng ký
                         </Text>
                     </TouchableOpacity>
-                </View>
-
-                {/* ========================================
-                    DEMO ACCOUNT
-                ======================================== */}
-
-                <View style={styles.demoContainer}>
-                    <Text style={styles.demoTitle}>
-                        Tài khoản Demo
-                    </Text>
-
-                    <Text style={styles.demoText}>
-                        Email: test@gmail.com
-                    </Text>
-
-                    <Text style={styles.demoText}>
-                        Mật khẩu: 123456
-                    </Text>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -344,7 +477,8 @@ export default function LoginScreen({ navigation, onLogin }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor:
+            colors.background,
     },
 
     content: {
@@ -353,10 +487,6 @@ const styles = StyleSheet.create({
         padding: 20,
     },
 
-    // ========================================
-    // LOGO
-    // ========================================
-
     logo: {
         fontSize: 24,
         fontWeight: "700",
@@ -364,10 +494,6 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginBottom: 32,
     },
-
-    // ========================================
-    // TITLE
-    // ========================================
 
     title: {
         fontSize: 28,
@@ -386,10 +512,6 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
 
-    // ========================================
-    // INPUT
-    // ========================================
-
     inputGroup: {
         marginBottom: 18,
     },
@@ -403,26 +525,26 @@ const styles = StyleSheet.create({
 
     input: {
         height: 48,
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         borderRadius: 10,
         paddingHorizontal: 14,
         fontSize: 16,
         color: colors.text,
     },
 
-    // ========================================
-    // PASSWORD INPUT
-    // ========================================
-
     passwordContainer: {
         height: 48,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: colors.white,
+        backgroundColor:
+            colors.white,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor:
+            colors.border,
         borderRadius: 10,
     },
 
@@ -446,7 +568,8 @@ const styles = StyleSheet.create({
     },
 
     inputError: {
-        borderColor: colors.error,
+        borderColor:
+            colors.error,
     },
 
     errorText: {
@@ -455,10 +578,6 @@ const styles = StyleSheet.create({
         color: colors.error,
         marginTop: 6,
     },
-
-    // ========================================
-    // FORGOT PASSWORD
-    // ========================================
 
     forgotContainer: {
         alignSelf: "flex-end",
@@ -472,21 +591,14 @@ const styles = StyleSheet.create({
         color: colors.primary,
     },
 
-    // ========================================
-    // ERROR CONTAINER
-    // ========================================
-
     errorContainer: {
         marginBottom: 12,
     },
 
-    // ========================================
-    // LOGIN BUTTON
-    // ========================================
-
     loginButton: {
         height: 48,
-        backgroundColor: colors.primary,
+        backgroundColor:
+            colors.primary,
         borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",
@@ -502,10 +614,6 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: colors.white,
     },
-
-    // ========================================
-    // REGISTER
-    // ========================================
 
     registerContainer: {
         flexDirection: "row",
@@ -524,33 +632,4 @@ const styles = StyleSheet.create({
         color: colors.primary,
         marginLeft: 5,
     },
-
-    // ========================================
-    // DEMO ACCOUNT
-    // ========================================
-
-    demoContainer: {
-        marginTop: 28,
-        padding: 12,
-        backgroundColor: colors.white,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 10,
-    },
-
-    demoTitle: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: 4,
-    },
-
-    demoText: {
-        fontSize: 13,
-        lineHeight: 19,
-        color: colors.gray,
-    },
 });
-
-
-

@@ -1,20 +1,27 @@
-import React, { useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import React, {
+    useState,
+} from "react";
+
+import {
+    NavigationContainer,
+} from "@react-navigation/native";
 
 import AuthNavigator from "./AuthNavigator";
 import MainNavigator from "./MainNavigator";
 
 export default function AppNavigator() {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [
+        isLoggedIn,
+        setIsLoggedIn,
+    ] = useState(false);
 
-    const [currentUser, setCurrentUser] = useState(null);
+    const [
+        currentUser,
+        setCurrentUser,
+    ] = useState(null);
 
-    const handleLogin = () => {
-        setCurrentUser({
-            name: "Người dùng",
-            email: "test@gmail.com",
-        });
-
+    const handleLogin = (user) => {
+        setCurrentUser(user);
         setIsLoggedIn(true);
     };
 
@@ -27,15 +34,20 @@ export default function AppNavigator() {
         <NavigationContainer>
             {isLoggedIn ? (
                 <MainNavigator
-                    currentUser={currentUser}
-                    onLogout={handleLogout}
+                    currentUser={
+                        currentUser
+                    }
+                    onLogout={
+                        handleLogout
+                    }
                 />
             ) : (
                 <AuthNavigator
-                    onLogin={handleLogin}
+                    onLogin={
+                        handleLogin
+                    }
                 />
             )}
         </NavigationContainer>
     );
 }
-
