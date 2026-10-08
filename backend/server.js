@@ -9,9 +9,9 @@ const startServer = async () => {
     try {
         await connectDatabase();
 
-        app.listen(PORT, () => {
+        app.listen(PORT, "0.0.0.0", () => {
             console.log(
-                `Backend appEduai đang chạy tại http://localhost:${PORT}`
+                `Backend appEduai đang chạy tại port ${PORT}`
             );
         });
     } catch (error) {
