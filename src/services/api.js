@@ -7,7 +7,7 @@ import {
 // ========================================
 
 export const API_BASE_URL =
-    "http://192.168.1.204:5000/api";
+    "https://appeduai-backend.onrender.com/api";
 
 // ========================================
 // FORM DATA CHECK
