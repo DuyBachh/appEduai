@@ -1,3 +1,9 @@
+import { Platform } from "react-native";
+
+import {
+    SafeAreaView,
+} from "react-native-safe-area-context";
+
 import {
     createBottomTabNavigator,
 } from "@react-navigation/bottom-tabs";
@@ -6,15 +12,7 @@ import {
     createNativeStackNavigator,
 } from "@react-navigation/native-stack";
 
-import {
-    Platform,
-} from "react-native";
-
-import {
-    Ionicons,
-} from "@expo/vector-icons";
-
-import colors from "../styles/colors";
+import { Ionicons } from "@expo/vector-icons";
 
 import HomeScreen from "../screens/home/HomeScreen";
 import DocumentsScreen from "../screens/documents/DocumentsScreen";
@@ -22,11 +20,16 @@ import DocumentDetailScreen from "../screens/documents/DocumentDetailScreen";
 import SummaryScreen from "../screens/documents/SummaryScreen";
 import SummaryHistoryScreen from "../screens/documents/SummaryHistoryScreen";
 import SummaryHistoryDetailScreen from "../screens/documents/SummaryHistoryDetailScreen";
-import ChatScreen from "../screens/chat/ChatScreen";
-import ChatHistoryScreen from "../screens/chat/ChatHistoryScreen";
+
 import ScanScreen from "../screens/scanner/ScanScreen";
 import ProfileScreen from "../screens/profile/ProfileScreen";
+
+import ChatScreen from "../screens/chat/ChatScreen";
+import ChatHistoryScreen from "../screens/chat/ChatHistoryScreen";
+
 import SolverScreen from "../screens/solver/SolverScreen";
+
+import colors from "../styles/colors";
 
 const Tab =
     createBottomTabNavigator();
@@ -35,41 +38,60 @@ const Stack =
     createNativeStackNavigator();
 
 // ========================================
-// TAB ICON
+// SAFE AREA WRAPPER
 // ========================================
 
-const getTabIcon = (
-    routeName,
-    focused
+const withTopSafeArea = (
+    ScreenComponent
 ) => {
-    switch (routeName) {
-        case "Home":
-            return focused
-                ? "home"
-                : "home-outline";
-
-        case "Documents":
-            return focused
-                ? "documents"
-                : "documents-outline";
-
-        case "Scan":
-            return focused
-                ? "scan"
-                : "scan-outline";
-
-        case "Profile":
-            return focused
-                ? "person"
-                : "person-outline";
-
-        default:
-            return "ellipse-outline";
-    }
+    return function SafeAreaScreen(
+        props
+    ) {
+        return (
+            <SafeAreaView
+                style={{
+                    flex: 1,
+                    backgroundColor:
+                        colors.background,
+                }}
+                edges={["top"]}
+            >
+                <ScreenComponent
+                    {...props}
+                />
+            </SafeAreaView>
+        );
+    };
 };
 
+// Các màn tự có custom header
+const SafeDocumentDetailScreen =
+    withTopSafeArea(
+        DocumentDetailScreen
+    );
+
+const SafeSummaryScreen =
+    withTopSafeArea(
+        SummaryScreen
+    );
+
+const SafeSummaryHistoryScreen =
+    withTopSafeArea(
+        SummaryHistoryScreen
+    );
+
+const SafeChatScreen =
+    withTopSafeArea(
+        ChatScreen
+    );
+
+const SafeChatHistoryScreen =
+    withTopSafeArea(
+        ChatHistoryScreen
+    );
+
 // ========================================
-// MAIN TABS
+// BOTTOM TAB
 // ========================================
 
 function MainTabs({
@@ -77,211 +99,172 @@ function MainTabs({
     onLogout,
 }) {
     return (
-        <Tab.Navigator
-            screenOptions={({
-                route,
-            }) => ({
-                // ========================================
-                // HEADER
-                // ========================================
+        <SafeAreaView
+            style={{
+                flex: 1,
+                backgroundColor:
+                    colors.background,
+            }}
+            edges={["top"]}
+        >
+            <Tab.Navigator
+                screenOptions={({
+                    route,
+                }) => ({
+                    // Tắt native header
+                    // vì các tab đã có nội dung
+                    // tiêu đề riêng
+                    headerShown: false,
 
-                headerShown: true,
+                    tabBarHideOnKeyboard:
+                        true,
 
-                headerStyle: {
-                    backgroundColor:
-                        colors.white,
-                },
+                    tabBarActiveTintColor:
+                        colors.primary,
 
-                headerTitleStyle: {
-                    fontSize: 20,
+                    tabBarInactiveTintColor:
+                        colors.textSecondary,
 
-                    fontWeight:
-                        "700",
+                    tabBarStyle: {
+                        backgroundColor:
+                            colors.white,
 
-                    color:
-                        colors.text,
-                },
+                        borderTopColor:
+                            colors.border,
 
-                headerTintColor:
-                    colors.text,
+                        height:
+                            Platform.OS ===
+                            "ios"
+                                ? 82
+                                : 68,
 
-                headerShadowVisible:
-                    false,
+                        paddingTop: 8,
 
-                headerTitleAlign:
-                    "left",
-
-                // ========================================
-                // TAB ICON
-                // ========================================
-
-                tabBarIcon: ({
-                    focused,
-                    color,
-                    size,
-                }) => (
-                    <Ionicons
-                        name={getTabIcon(
-                            route.name,
-                            focused
-                        )}
-                        size={size}
-                        color={color}
-                    />
-                ),
-
-                // ========================================
-                // TAB COLORS
-                // ========================================
-
-                tabBarActiveTintColor:
-                    colors.primary,
-
-                tabBarInactiveTintColor:
-                    colors.textSecondary,
-
-                // ========================================
-                // TAB LABEL
-                // ========================================
-
-                tabBarLabelStyle: {
-                    fontSize: 12,
-
-                    fontWeight:
-                        "600",
-
-                    marginTop: 2,
-                },
-
-                // ========================================
-                // TAB BAR STYLE
-                // ========================================
-
-                tabBarStyle: {
-                    backgroundColor:
-                        colors.white,
-
-                    borderTopWidth: 1,
-
-                    borderTopColor:
-                        colors.border,
-
-                    height:
-                        Platform.OS ===
-                        "ios"
-                            ? 82
-                            : 68,
-
-                    paddingTop: 8,
-
-                    paddingBottom:
-                        Platform.OS ===
-                        "ios"
-                            ? 20
-                            : 8,
-
-                    shadowColor:
-                        colors.black,
-
-                    shadowOffset: {
-                        width: 0,
-                        height: -2,
+                        paddingBottom:
+                            Platform.OS ===
+                            "ios"
+                                ? 22
+                                : 8,
                     },
 
-                    shadowOpacity:
-                        0.05,
+                    tabBarIcon: ({
+                        color,
+                        size,
+                        focused,
+                    }) => {
+                        let iconName;
 
-                    shadowRadius: 6,
+                        switch (
+                            route.name
+                        ) {
+                            case "Home":
+                                iconName =
+                                    focused
+                                        ? "home"
+                                        : "home-outline";
+                                break;
 
-                    elevation: 8,
-                },
+                            case "Documents":
+                                iconName =
+                                    focused
+                                        ? "documents"
+                                        : "documents-outline";
+                                break;
 
-                tabBarItemStyle: {
-                    paddingVertical: 2,
-                },
+                            case "Scan":
+                                iconName =
+                                    focused
+                                        ? "scan"
+                                        : "scan-outline";
+                                break;
 
-                tabBarHideOnKeyboard:
-                    true,
-            })}
-        >
-            {/* HOME */}
+                            case "Profile":
+                                iconName =
+                                    focused
+                                        ? "person"
+                                        : "person-outline";
+                                break;
 
-            <Tab.Screen
-                name="Home"
-                component={
-                    HomeScreen
-                }
-                options={{
-                    title:
-                        "Trang chủ",
+                            default:
+                                iconName =
+                                    "ellipse-outline";
+                        }
 
-                    tabBarLabel:
-                        "Trang chủ",
-                }}
-            />
-
-            {/* DOCUMENTS */}
-
-            <Tab.Screen
-                name="Documents"
-                component={
-                    DocumentsScreen
-                }
-                options={{
-                    title:
-                        "Tài liệu",
-
-                    tabBarLabel:
-                        "Tài liệu",
-                }}
-            />
-
-            {/* SCAN */}
-
-            <Tab.Screen
-                name="Scan"
-                component={
-                    ScanScreen
-                }
-                options={{
-                    title:
-                        "Quét tài liệu",
-
-                    tabBarLabel:
-                        "Quét",
-                }}
-            />
-
-            {/* PROFILE */}
-
-            <Tab.Screen
-                name="Profile"
-                options={{
-                    title:
-                        "Cá nhân",
-
-                    tabBarLabel:
-                        "Cá nhân",
-                }}
+                        return (
+                            <Ionicons
+                                name={
+                                    iconName
+                                }
+                                size={
+                                    size
+                                }
+                                color={
+                                    color
+                                }
+                            />
+                        );
+                    },
+                })}
             >
-                {(props) => (
-                    <ProfileScreen
-                        {...props}
-                        currentUser={
-                            currentUser
-                        }
-                        onLogout={
-                            onLogout
-                        }
-                    />
-                )}
-            </Tab.Screen>
-        </Tab.Navigator>
+                <Tab.Screen
+                    name="Home"
+                    component={
+                        HomeScreen
+                    }
+                    options={{
+                        title:
+                            "Trang chủ",
+                    }}
+                />
+
+                <Tab.Screen
+                    name="Documents"
+                    component={
+                        DocumentsScreen
+                    }
+                    options={{
+                        title:
+                            "Tài liệu",
+                    }}
+                />
+
+                <Tab.Screen
+                    name="Scan"
+                    component={
+                        ScanScreen
+                    }
+                    options={{
+                        title:
+                            "Quét",
+                    }}
+                />
+
+                <Tab.Screen
+                    name="Profile"
+                    options={{
+                        title:
+                            "Cá nhân",
+                    }}
+                >
+                    {(props) => (
+                        <ProfileScreen
+                            {...props}
+                            currentUser={
+                                currentUser
+                            }
+                            onLogout={
+                                onLogout
+                            }
+                        />
+                    )}
+                </Tab.Screen>
+            </Tab.Navigator>
+        </SafeAreaView>
     );
 }
 
 // ========================================
-// MAIN NAVIGATOR
+// MAIN STACK
 // ========================================
 
 export default function MainNavigator({
@@ -289,9 +272,26 @@ export default function MainNavigator({
     onLogout,
 }) {
     return (
-        <Stack.Navigator>
-            {/* MAIN TABS */}
+        <Stack.Navigator
+            screenOptions={{
+                headerShadowVisible:
+                    false,
 
+                headerStyle: {
+                    backgroundColor:
+                        colors.white,
+                },
+
+                headerTintColor:
+                    colors.text,
+
+                headerTitleStyle: {
+                    fontWeight:
+                        "700",
+                },
+            }}
+        >
+            {/* MAIN TAB */}
             <Stack.Screen
                 name="MainTabs"
                 options={{
@@ -312,88 +312,68 @@ export default function MainNavigator({
                 )}
             </Stack.Screen>
 
-            {/* DOCUMENT DETAIL */}
+            {/* ========================= */}
+            {/* CUSTOM HEADER SCREENS */}
+            {/* ========================= */}
 
             <Stack.Screen
                 name="DocumentDetail"
                 component={
-                    DocumentDetailScreen
+                    SafeDocumentDetailScreen
                 }
                 options={{
-                    title:
-                        "Chi tiết tài liệu",
-
-                    headerBackTitleVisible:
-                        false,
-
-                    headerTintColor:
-                        colors.text,
-
-                    headerStyle: {
-                        backgroundColor:
-                            colors.white,
-                    },
-
-                    headerShadowVisible:
+                    headerShown:
                         false,
                 }}
             />
-
-            {/* SUMMARY */}
 
             <Stack.Screen
                 name="Summary"
                 component={
-                    SummaryScreen
+                    SafeSummaryScreen
                 }
                 options={{
-                    title:
-                        "Tóm tắt tài liệu",
-
-                    headerBackTitleVisible:
-                        false,
-
-                    headerTintColor:
-                        colors.text,
-
-                    headerStyle: {
-                        backgroundColor:
-                            colors.white,
-                    },
-
-                    headerShadowVisible:
+                    headerShown:
                         false,
                 }}
             />
-
-            {/* SUMMARY HISTORY */}
 
             <Stack.Screen
                 name="SummaryHistory"
                 component={
-                    SummaryHistoryScreen
+                    SafeSummaryHistoryScreen
                 }
                 options={{
-                    title:
-                        "Lịch sử tóm tắt",
-
-                    headerBackTitleVisible:
-                        false,
-
-                    headerTintColor:
-                        colors.text,
-
-                    headerStyle: {
-                        backgroundColor:
-                            colors.white,
-                    },
-
-                    headerShadowVisible:
+                    headerShown:
                         false,
                 }}
             />
 
-            {/* SUMMARY HISTORY DETAIL */}
+            <Stack.Screen
+                name="Chat"
+                component={
+                    SafeChatScreen
+                }
+                options={{
+                    headerShown:
+                        false,
+                }}
+            />
+
+            <Stack.Screen
+                name="ChatHistory"
+                component={
+                    SafeChatHistoryScreen
+                }
+                options={{
+                    headerShown:
+                        false,
+                }}
+            />
+
+            {/* ========================= */}
+            {/* NATIVE HEADER SCREENS */}
+            {/* ========================= */}
 
             <Stack.Screen
                 name="SummaryHistoryDetail"
@@ -403,78 +383,8 @@ export default function MainNavigator({
                 options={{
                     title:
                         "Chi tiết tóm tắt",
-
-                    headerBackTitleVisible:
-                        false,
-
-                    headerTintColor:
-                        colors.text,
-
-                    headerStyle: {
-                        backgroundColor:
-                            colors.white,
-                    },
-
-                    headerShadowVisible:
-                        false,
                 }}
             />
-
-            {/* CHAT */}
-
-            <Stack.Screen
-                name="Chat"
-                component={
-                    ChatScreen
-                }
-                options={{
-                    title:
-                        "AI Chat",
-
-                    headerBackTitleVisible:
-                        false,
-
-                    headerTintColor:
-                        colors.text,
-
-                    headerStyle: {
-                        backgroundColor:
-                            colors.white,
-                    },
-
-                    headerShadowVisible:
-                        false,
-                }}
-            />
-
-            {/* CHAT HISTORY */}
-
-            <Stack.Screen
-                name="ChatHistory"
-                component={
-                    ChatHistoryScreen
-                }
-                options={{
-                    title:
-                        "Lịch sử trò chuyện",
-
-                    headerBackTitleVisible:
-                        false,
-
-                    headerTintColor:
-                        colors.text,
-
-                    headerStyle: {
-                        backgroundColor:
-                            colors.white,
-                    },
-
-                    headerShadowVisible:
-                        false,
-                }}
-            />
-
-            {/* SOLVER */}
 
             <Stack.Screen
                 name="Solver"
@@ -484,20 +394,6 @@ export default function MainNavigator({
                 options={{
                     title:
                         "AI Solver",
-
-                    headerBackTitleVisible:
-                        false,
-
-                    headerTintColor:
-                        colors.text,
-
-                    headerStyle: {
-                        backgroundColor:
-                            colors.white,
-                    },
-
-                    headerShadowVisible:
-                        false,
                 }}
             />
         </Stack.Navigator>
