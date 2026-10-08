@@ -27,6 +27,21 @@ export default class DocumentService {
         return getDocumentsFromResponse(result);
     }
 
+    static async getDocumentById(documentId) {
+        const result =
+            await apiRequest(
+                `/documents/${documentId}`
+            );
+
+        if (!result?.data) {
+            throw new Error(
+                "Không tìm thấy dữ liệu tài liệu."
+            );
+        }
+
+        return result.data;
+    }
+
     static async pickDocument() {
         const result =
             await DocumentPicker.getDocumentAsync({
