@@ -7,6 +7,7 @@ import {
     createNativeStackNavigator,
 } from "@react-navigation/native-stack";
 
+import TopSafeArea from "../components/TopSafeArea";
 import colors from "../styles/colors";
 
 import HomeScreen from "../screens/home/HomeScreen";
@@ -99,26 +100,38 @@ function MainTabs({ currentUser, onLogout }) {
 
             <Tab.Screen
                 name="Documents"
-                component={DocumentsScreen}
                 options={{ title: "Tài liệu" }}
-            />
+            >
+                {(props) => (
+                    <TopSafeArea>
+                        <DocumentsScreen {...props} />
+                    </TopSafeArea>
+                )}
+            </Tab.Screen>
 
             <Tab.Screen
                 name="Scan"
-                component={ScanScreen}
                 options={{ title: "Quét" }}
-            />
+            >
+                {(props) => (
+                    <TopSafeArea>
+                        <ScanScreen {...props} />
+                    </TopSafeArea>
+                )}
+            </Tab.Screen>
 
             <Tab.Screen
                 name="Profile"
                 options={{ title: "Cá nhân" }}
             >
                 {(props) => (
-                    <ProfileScreen
-                        {...props}
-                        currentUser={currentUser}
-                        onLogout={onLogout}
-                    />
+                    <TopSafeArea>
+                        <ProfileScreen
+                            {...props}
+                            currentUser={currentUser}
+                            onLogout={onLogout}
+                        />
+                    </TopSafeArea>
                 )}
             </Tab.Screen>
         </Tab.Navigator>
@@ -161,9 +174,14 @@ export default function MainNavigator({
 
             <Stack.Screen
                 name="DocumentDetail"
-                component={DocumentDetailScreen}
                 options={hiddenHeaderOptions}
-            />
+            >
+                {(props) => (
+                    <TopSafeArea>
+                        <DocumentDetailScreen {...props} />
+                    </TopSafeArea>
+                )}
+            </Stack.Screen>
 
             <Stack.Screen
                 name="Summary"
