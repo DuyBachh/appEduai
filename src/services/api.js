@@ -2,185 +2,117 @@ import {
     getToken,
 } from "./tokenStorage";
 
-// ========================================
-// API URL
-// ========================================
-
 export const API_BASE_URL =
     "https://appeduai-backend.onrender.com/api";
 
-// ========================================
-// FORM DATA CHECK
-// ========================================
-
-const isFormData = (
-    value
-) => {
+const isFormData = (value) => {
     return (
-        typeof FormData !==
-            "undefined" &&
-        value instanceof
-            FormData
+        typeof FormData !== "undefined" &&
+        value instanceof FormData
     );
 };
 
-// ========================================
-// API REQUEST
-// ========================================
+export const apiRequest = async (
+    endpoint,
+    options = {}
+) => {
+    const {
+        skipAuth = false,
+        headers: optionHeaders,
+        ...fetchOptions
+    } = options;
 
-export const apiRequest =
-    async (
-        endpoint,
-        options = {}
-    ) => {
-        const token =
-            await getToken();
+    const token = skipAuth
+        ? null
+        : await getToken();
 
-        const url =
-            endpoint.startsWith(
-                "http"
-            )
-                ? endpoint
-                : `${API_BASE_URL}${endpoint}`;
+    const url = endpoint.startsWith("http")
+        ? endpoint
+        : `${API_BASE_URL}${endpoint}`;
 
-        const headers = {
-            Accept:
-                "application/json",
+    const headers = {
+        Accept: "application/json",
+        ...(optionHeaders || {}),
+    };
 
-            ...(options.headers ||
-                {}),
-        };
+    if (
+        fetchOptions.body &&
+        !isFormData(fetchOptions.body) &&
+        !headers["Content-Type"]
+    ) {
+        headers["Content-Type"] =
+            "application/json";
+    }
 
-        // ========================================
-        // CONTENT TYPE
-        // ========================================
+    if (token) {
+        headers.Authorization =
+            `Bearer ${token}`;
+    }
 
-        if (
-            options.body &&
-            !isFormData(
-                options.body
-            ) &&
-            !headers[
-                "Content-Type"
-            ]
-        ) {
-            headers[
-                "Content-Type"
-            ] =
-                "application/json";
-        }
+    console.log("API URL:", url);
 
-        // ========================================
-        // TOKEN
-        // ========================================
+    let response;
 
-        if (token) {
-            headers.Authorization =
-                `Bearer ${token}`;
-        }
-
+    try {
+        response = await fetch(url, {
+            ...fetchOptions,
+            headers,
+        });
+    } catch (error) {
         console.log(
-            "API URL:",
-            url
+            "API NETWORK ERROR:",
+            error.message
         );
 
-        let response;
-
-        // ========================================
-        // REQUEST
-        // ========================================
-
-        try {
-            // Cố ý không dùng
-            // AbortController timeout.
-            //
-            // Summary tài liệu dài
-            // được phép chờ lâu.
-            response =
-                await fetch(
-                    url,
-                    {
-                        ...options,
-
-                        headers,
-                    }
-                );
-        } catch (error) {
-            console.log(
-                "API NETWORK ERROR:",
-                error.message
+        const networkError =
+            new Error(
+                "Không thể kết nối tới backend. Vui lòng kiểm tra kết nối mạng và thử lại."
             );
 
-            const networkError =
-                new Error(
-                    "Không thể kết nối tới backend. Kiểm tra Wi-Fi và địa chỉ IP của máy tính."
-                );
+        networkError.cause = error;
 
-            networkError.cause =
-                error;
+        throw networkError;
+    }
 
-            throw networkError;
+    console.log(
+        "API STATUS:",
+        response.status
+    );
+
+    const rawText =
+        await response.text();
+
+    let result = null;
+
+    if (rawText) {
+        try {
+            result =
+                JSON.parse(rawText);
+        } catch {
+            result = {
+                message: rawText,
+            };
         }
+    }
 
-        console.log(
-            "API STATUS:",
-            response.status
-        );
+    if (!response.ok) {
+        const error =
+            new Error(
+                result?.message ||
+                    `API lỗi ${response.status}.`
+            );
 
-        // ========================================
-        // RESPONSE BODY
-        // ========================================
+        error.status =
+            response.status;
 
-        const rawText =
-            await response.text();
+        error.data = result;
 
-        let result =
-            null;
+        throw error;
+    }
 
-        if (rawText) {
-            try {
-                result =
-                    JSON.parse(
-                        rawText
-                    );
-            } catch {
-                result = {
-                    message:
-                        rawText,
-                };
-            }
+    return (
+        result || {
+            success: true,
         }
-
-        // ========================================
-        // ERROR
-        // ========================================
-
-        if (
-            !response.ok
-        ) {
-            const error =
-                new Error(
-                    result?.message ||
-                        `API lỗi ${response.status}.`
-                );
-
-            error.status =
-                response.status;
-
-            error.data =
-                result;
-
-            throw error;
-        }
-
-        // ========================================
-        // SUCCESS
-        // ========================================
-
-        return (
-            result || {
-                success:
-                    true,
-            }
-        );
-    };
+    );
+};
