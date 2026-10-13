@@ -182,11 +182,6 @@ const uploadDocument = async (
                 req.body.originalName;
         }
 
-        console.log(
-            "TÊN FILE GỐC:",
-            uploadedFile.originalname
-        );
-
         const document =
             await documentService
                 .uploadDocumentService({

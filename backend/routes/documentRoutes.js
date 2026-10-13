@@ -28,44 +28,7 @@ router.post(
 
 router.post(
     "/upload",
-
-    // Debug request trước Multer
-    (req, res, next) => {
-        console.log(
-            "\n===== UPLOAD REQUEST ====="
-        );
-
-        console.log(
-            "CONTENT-TYPE:",
-            req.headers["content-type"]
-        );
-
-        console.log(
-            "CONTENT-LENGTH:",
-            req.headers["content-length"]
-        );
-
-        next();
-    },
-
-    // Nhận mọi field file
     upload.any(),
-
-    // Debug sau Multer
-    (req, res, next) => {
-        console.log(
-            "FILES SAU MULTER:",
-            req.files
-        );
-
-        console.log(
-            "BODY SAU MULTER:",
-            req.body
-        );
-
-        next();
-    },
-
     uploadDocument
 );
 
