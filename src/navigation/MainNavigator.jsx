@@ -10,17 +10,17 @@ import {
 import TopSafeArea from "../components/TopSafeArea";
 import colors from "../styles/colors";
 
-import HomeScreen from "../screens/home/HomeScreen";
-import DocumentsScreen from "../screens/documents/DocumentsScreen";
-import DocumentDetailScreen from "../screens/documents/DocumentDetailScreen";
-import SummaryScreen from "../screens/documents/SummaryScreen";
-import SummaryHistoryScreen from "../screens/documents/SummaryHistoryScreen";
-import SummaryHistoryDetailScreen from "../screens/documents/SummaryHistoryDetailScreen";
-import ChatScreen from "../screens/chat/ChatScreen";
-import ChatHistoryScreen from "../screens/chat/ChatHistoryScreen";
-import ScanScreen from "../screens/scanner/ScanScreen";
-import SolverScreen from "../screens/solver/SolverScreen";
-import ProfileScreen from "../screens/profile/ProfileScreen";
+import HomeScreen from "../features/home/screens/HomeScreen";
+import DocumentsScreen from "../features/documents/screens/DocumentsScreen";
+import DocumentDetailScreen from "../features/documents/screens/DocumentDetailScreen";
+import SummaryScreen from "../features/summary/screens/SummaryScreen";
+import SummaryHistoryScreen from "../features/summary/screens/SummaryHistoryScreen";
+import SummaryHistoryDetailScreen from "../features/summary/screens/SummaryHistoryDetailScreen";
+import ChatScreen from "../features/chat/screens/ChatScreen";
+import ChatHistoryScreen from "../features/chat/screens/ChatHistoryScreen";
+import ScanScreen from "../features/scanner/screens/ScanScreen";
+import SolverScreen from "../features/solver/screens/SolverScreen";
+import ProfileScreen from "../features/profile/screens/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
