@@ -3,8 +3,8 @@ import {
 } from "./tokenStorage";
 
 export const API_BASE_URL =
-    // "https://appeduai-backend.onrender.com/api";
-     "http://192.168.3.159:5000/api";
+    "https://appeduai-backend.onrender.com/api";
+    //  "http://192.168.3.159:5000/api";
 
 const isFormData = (value) => {
     return (
