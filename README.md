@@ -64,7 +64,7 @@ appEduai/
 └── .gitignore
 ~~~
 
-Các màn hình nằm trong src/features/*/screens/; Navigation import trực tiếp tại đây. Thư mục trung gian src/screens/ đã được bỏ trong đợt refactor.
+
 
 ## Chuẩn bị
 
