@@ -5,7 +5,8 @@ import {
 export default class SummaryService {
     static async createSummary(
         documentId,
-        type
+        type,
+        sectionId = null
     ) {
         const result =
             await apiRequest(
@@ -14,6 +15,7 @@ export default class SummaryService {
                     method: "POST",
                     body: JSON.stringify({
                         type,
+                        sectionId,
                     }),
                 }
             );
@@ -25,6 +27,13 @@ export default class SummaryService {
         }
 
         return result.data;
+    }
+
+    static async getSections(documentId) {
+        const result = await apiRequest(
+            `/summaries/documents/${documentId}/sections`
+        );
+        return Array.isArray(result?.data) ? result.data : [];
     }
 
     static async getHistory(
