@@ -22,6 +22,8 @@ export default class ChatService {
         documentId,
         conversationId,
         question,
+        saveHistory = true,
+        ephemeralHistory = [],
     }) {
         const result =
             await apiRequest("/chat", {
@@ -30,6 +32,8 @@ export default class ChatService {
                     documentId,
                     conversationId,
                     question,
+                    saveHistory,
+                    ephemeralHistory,
                 }),
             });
 
