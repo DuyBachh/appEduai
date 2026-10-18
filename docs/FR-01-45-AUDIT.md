@@ -172,3 +172,11 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 | TC-FR45-05 | Thử khi Backend/Gemini lỗi | Có lỗi rõ ràng, vẫn giữ nội dung để gửi lại |
 
 **Chú ý:** Render `main` chưa được cập nhật. Kiểm thử FR-45 cần Backend local đang chạy `feature/fr-completion`; chỉ cập nhật Expo mà không khởi động Backend mới sẽ trả lỗi 404.
+
+## Sửa giao diện Solver và lỗi 404 local – 18/10/2026
+
+- Đã xóa dòng **Ví dụ: ...** ở thẻ Hỏi thêm về bài giải, thay placeholder chứa ví dụ toán ở ô Solver thành hướng dẫn trung tính.
+- Đã kiểm tra source GitHub: `backend/app.js` mount `/api/solver` và `backend/routes/solverRoutes.js` có `POST /follow-up`. Không thay đổi đường dẫn API.
+- Log người dùng: `POST http://192.168.1.204:5000/api/solver/follow-up` trả **404**. Giả thuyết chính: Backend local vẫn chạy source cũ hoặc tiến trình khác chiếm port 5000; chưa thể xác minh từ máy người dùng.
+- Giao diện sẽ thông báo cụ thể khi gặp lỗi 404 để hướng dẫn đồng bộ rồi khởi động lại Backend từ `feature/fr-completion`.
+- **FR-43, FR-45 vẫn Not Run / chưa PASS** cho tới khi người dùng kiểm tra lại trên iPhone.
