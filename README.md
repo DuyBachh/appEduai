@@ -110,8 +110,7 @@ NODE_ENV=development
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
 GEMINI_API_KEY=your_gemini_api_key
-RESEND_API_KEY=
-RESET_EMAIL_FROM=
+# Chỉ cho Backend local phục vụ demo reset không gửi email
 ALLOW_DEMO_RESET_TOKEN=false
 ~~~
 
@@ -168,7 +167,7 @@ Base URL: http://localhost:5000/api hoặc https://appeduai-backend.onrender.com
 | POST | /auth/logout | Phản hồi đăng xuất |
 | GET | /auth/me | Thông tin tài khoản |
 | PUT | /auth/profile | Đổi tên người dùng |
-| POST | /auth/forgot-password | Gửi mã đặt lại qua email hoặc demo local có kiểm soát |
+| POST | /auth/forgot-password | Tạo token reset tự động ở Backend local demo (không gửi email) |
 | POST | /auth/reset-password | Đặt lại mật khẩu |
 | POST | /documents | Tạo bản ghi tài liệu |
 | POST | /documents/upload | Upload tài liệu (multipart/form-data) |
@@ -229,7 +228,7 @@ GitHub Actions tự chạy kiểm thử và đóng gói Expo iOS khi push nhánh
 
 ## Giới hạn và bảo mật (quan trọng)
 
-1. **Quên mật khẩu:** API phát mã ngẫu nhiên, chỉ lưu SHA-256 của mã và cho dùng một lần trong 15 phút. Khi deploy cần cấu hình `RESEND_API_KEY` cùng `RESET_EMAIL_FROM` để gửi mã qua email, không trả mã qua API. Nếu thiếu dịch vụ email, endpoint trả 503. Demo local chỉ bật khi `NODE_ENV=development` và `ALLOW_DEMO_RESET_TOKEN=true` (sẽ trả mã qua API); **không bật trên Render hoặc server public**.
+1. **FR-03 – Reset mật khẩu demo, không gửi email:** Người dùng nhập email trên giao diện, Backend local tạo token có hạn 15 phút (chỉ lưu SHA-256), trả về ứng dụng để chuyển thẳng sang màn hình đặt lại mật khẩu, không yêu cầu nhập mã email. Token dùng một lần. Chỉ hoạt động khi `NODE_ENV=development` và `ALLOW_DEMO_RESET_TOKEN=true`. **Không bật chức năng trả mã reset cho tài khoản trên Render/public**: ai biết email cũng có thể chiếm quyền tài khoản. Khi không bật demo, endpoint `/auth/forgot-password` trả 503 để tránh cung cấp mã cho người lạ. Đây là giới hạn có chủ đích của đồ án demo, không phải luồng khôi phục mật khẩu bảo mật cho người dùng thật.
 2. Tệp nằm tại `backend/uploads` trên filesystem, không phục vụ công khai qua `/uploads/*`. Nếu môi trường deploy không có lưu trữ bền vững, file có thể mất khi deploy lại. Cần bổ sung API tải file riêng với JWT nếu tương lai muốn tải lại PDF gốc.
 3. Xóa tài liệu sẽ xóa tóm tắt, hội thoại và file gốc; MongoDB/filesystem không có transaction chung, lỗi gián đoạn cần kiểm tra hoặc dọn bổ sung.
 4. Tắt lưu lịch sử Chat và hỏi tiếp Solver không ghi vào MongoDB, nhưng nội dung vẫn được gửi tới Gemini theo điều khoản dịch vụ.
@@ -238,7 +237,7 @@ GitHub Actions tự chạy kiểm thử và đóng gói Expo iOS khi push nhánh
 ## Quy trình kiểm thử tổng hợp trước khi merge `main`
 
 1. Chạy `npm test` và `npm run check:ios`, hoặc kiểm tra GitHub Actions xanh tại HEAD.
-2. Với Backend local, cấu hình MongoDB, Gemini và email reset hoặc demo local, dùng tài khoản/tài liệu thử.
+2. Với Backend local, cấu hình MongoDB và Gemini; bật reset demo không gửi email chỉ khi thử tài khoản giả trên mạng tin cậy.
 3. Thử một lần xuyên suốt trên iPhone: Auth/Reset → Documents → Summary → Chat → Scanner/OCR → Solver → Profile/Logout, bao gồm hai tài khoản để xác nhận dữ liệu tách biệt.
 4. Chỉ merge `feature/fr-completion` vào `main` sau khi đợt test cuối PASS; Render trỏ `main` có thể tự deploy, nên cần thiết lập biến môi trường trước khi coi bản deploy đủ tính năng.
 ## Tham khảo

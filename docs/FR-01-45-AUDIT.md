@@ -18,7 +18,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 |---|---|---|---|---|
 | FR-01 | Đăng ký email/mật khẩu | Có code | Đăng ký email mới, kiểm tra tài khoản | Not Run |
 | FR-02 | Đăng nhập, đăng xuất | Có code | Đăng nhập đúng/sai, đăng xuất | Not Run |
-| FR-03 | Quên/đặt lại mật khẩu | Demo có rủi ro | Chỉ thử với tài khoản giả; token reset hiện lộ qua API | Not Run |
+| FR-03 | Quên/đặt lại mật khẩu | Reset demo không gửi email: token trả tự động cho app trong Backend local; token dùng một lần, hạn 15 phút | Đã test cũ trước đây; xác nhận smoke test luồng khôi phục bằng tài khoản giả sau hotfix | Pending hotfix test |
 | FR-04 | Cập nhật hồ sơ | Có code | Đổi tên, tải lại, kiểm tra lưu | Not Run |
 | FR-05 | Dữ liệu riêng theo tài khoản | Đã triển khai chặn public uploads và kiểm thử A/B, API, file trên iPhone/local | Hai tài khoản A/B không truy cập chéo tài liệu, Summary/Chat, không xem được file gốc qua URL công khai | **PASS 8/8** (người dùng xác nhận) |
 | FR-06 | Upload tài liệu | Có code | Tải file mẫu lên | Not Run |
@@ -75,7 +75,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 
 ## Rủi ro demo ngoài FR
 
-- `/auth/forgot-password` trả `resetToken` trực tiếp cho caller không xác thực: **không an toàn cho production**.
+- FR-03 cố ý giữ luồng reset **demo local không gửi email**. Backend chỉ trả mã cho app khi `NODE_ENV=development` và `ALLOW_DEMO_RESET_TOKEN=true`; không cho phép sử dụng trên Render/public vì người biết email có thể chiếm tài khoản.
 - Trên `main`/Render (chưa merge), `/uploads` vẫn dùng static public; branch `feature/fr-completion` đã bỏ route này. File trên filesystem Render có thể mất sau deploy.
 - Chưa có bộ automated regression test chính thức/CI.
 
@@ -312,7 +312,7 @@ Code đã có: nút **+ Tải lên** dùng Expo DocumentPicker, Backend chấp n
 | ST | Luồng chính | Điều kiện PASS |
 |---|---|---|
 | FINAL-01 | Auth: đăng ký tài khoản thử, đăng nhập sai/đúng, cập nhật profile, đăng xuất | Login/profile ổn và token hoạt động |
-| FINAL-02 | Quên mật khẩu: demo local bật `NODE_ENV=development` và `ALLOW_DEMO_RESET_TOKEN=true`; nhập mã đặt lại, reset và đăng nhập lại | Mã chỉ dùng một lần, mật khẩu mới hoạt động; token cũ không dùng lại được |
+| FINAL-02 | Quên mật khẩu: Backend local bật `NODE_ENV=development` và `ALLOW_DEMO_RESET_TOKEN=true`; app tự nhận token, không gửi email và không nhập mã; reset rồi đăng nhập lại | Mã chỉ dùng một lần, mật khẩu mới hoạt động; token cũ không dùng lại được |
 | FINAL-03 | Documents: upload PDF/DOCX/TXT, xem chi tiết metadata, đổi tên, nhóm/lọc | File hiển thị đúng loại, văn bản được trích xuất |
 | FINAL-04 | Summary: 3 độ dài, phạm vi toàn file/chương, mở lịch sử | Nội dung đúng nguồn, lịch sử còn sau khi rời màn hình |
 | FINAL-05 | Chat: hỏi theo tài liệu, hỏi tiếp, New Chat, bật/tắt lưu lịch sử | Ngữ cảnh và chế độ lưu hoạt động |
@@ -320,6 +320,13 @@ Code đã có: nút **+ Tải lên** dùng Expo DocumentPicker, Backend chấp n
 | FINAL-07 | Solver: phân loại, gợi ý trước/tiếp, ẩn/xem lời giải và hỏi tiếp | Kết quả đúng bài, hỏi tiếp giữ ngữ cảnh |
 | FINAL-08 | Bảo vệ dữ liệu: A/B không xem được nhau; xóa file thử và dữ liệu liên quan | Phân quyền đúng, file và history liên quan bị xóa |
 
-**Điều kiện để merge `main`:** FINAL-01 tới FINAL-08 PASS trên iPhone và CI xanh tại HEAD. Cần lưu ý Backend Render trỏ `main` có thể tự deploy; email reset production yêu cầu `RESEND_API_KEY` và `RESET_EMAIL_FROM` được cấu hình tại host (không có thì API báo 503). Không sử dụng cờ demo reset công khai.
+**Điều kiện để merge `main`:** FINAL-01 tới FINAL-08 PASS trên iPhone và CI xanh tại HEAD. Cần lưu ý Backend Render trỏ `main` có thể tự deploy; FR-03 là demo **không gửi email**. Trên Render/public, endpoint quên mật khẩu bị tắt có chủ đích (503) để không làm lộ token; chỉ kiểm thử trên Backend local bật cờ demo.
 
 **PR chuẩn bị merge:** https://github.com/DuyBachh/appEduai/pull/1 (draft, chưa merge).
+
+## Sửa sai theo yêu cầu gốc FR-03 – 18/10/2026
+
+- Xác nhận: đồ án chỉ yêu cầu luồng Forgot/Reset mô phỏng, **không cần gửi email**. Tính năng gửi mã qua Resend được thêm trước đó là ngoài phạm vi; đã loại bỏ.
+- Luồng đúng: nhập email → Backend local tạo token 15 phút → trả token tự động về app → nhập mật khẩu mới và xác nhận → reset một lần → đăng nhập bằng mật khẩu mới. Không có bước dán mã email.
+- Do quyền đặt lại mật khẩu không được xác minh qua email, chỉ dùng cho test trên local tin cậy với tài khoản giả. Render không trả token công khai; chức năng Quên mật khẩu ở Render trả 503 thay vì cho phép chiếm tài khoản.
+- Chờ CI hotfix và xác nhận test giới hạn cho FR-03; không tự động biến 45 FR thành chưa kiểm thử.

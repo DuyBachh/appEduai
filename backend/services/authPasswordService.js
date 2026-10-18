@@ -9,49 +9,17 @@ const isLocalDemoEnabled = () =>
     process.env.NODE_ENV === "development" &&
     process.env.ALLOW_DEMO_RESET_TOKEN === "true";
 
-const canSendResetEmail = () =>
-    Boolean(process.env.RESEND_API_KEY && process.env.RESET_EMAIL_FROM);
-
-// Sending a secret to the account owner must happen out of band.
-// This provider uses Node's built-in fetch so it needs no added dependency.
-const sendResetEmail = async ({ email, resetToken }) => {
-    const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            from: process.env.RESET_EMAIL_FROM,
-            to: [email],
-            subject: "appEduai - Mã đặt lại mật khẩu",
-            text: [
-                "Bạn đã yêu cầu đặt lại mật khẩu cho appEduai.",
-                "",
-                `Mã đặt lại mật khẩu: ${resetToken}`,
-                "Mã có hiệu lực trong 15 phút và chỉ sử dụng một lần.",
-                "Nếu không yêu cầu, bạn có thể bỏ qua email này.",
-            ].join("\n"),
-        }),
-    });
-
-    if (!response.ok) {
-        throw createServiceError(
-            "Chưa gửi được email đặt lại mật khẩu. Vui lòng thử lại sau.",
-            503
-        );
-    }
-};
-
 const forgotPassword = async (email) => {
     if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         throw createServiceError("Email không hợp lệ.", 400);
     }
 
-    const demoMode = isLocalDemoEnabled();
-    if (!canSendResetEmail() && !demoMode) {
+    // The assignment's reset flow is a local-only demo: no email/OTP service.
+    // Returning a token to an unauthenticated caller must NEVER be enabled
+    // on a publicly reachable server; it permits account takeover.
+    if (!isLocalDemoEnabled()) {
         throw createServiceError(
-            "Chức năng gửi email đặt lại mật khẩu chưa được cấu hình.",
+            "Quên mật khẩu bản demo chỉ hỗ trợ Backend local, không gửi email.",
             503
         );
     }
@@ -84,30 +52,12 @@ const forgotPassword = async (email) => {
         }
     );
 
-    if (canSendResetEmail()) {
-        try {
-            await sendResetEmail({ email: normalizedEmail, resetToken });
-        } catch (error) {
-            await users.updateOne(
-                { _id: user._id, resetPasswordTokenHash },
-                { $unset: {
-                    resetPasswordTokenHash: "",
-                    resetPasswordExpires: "",
-                }}
-            );
-            if (error?.statusCode === 503) throw error;
-            throw createServiceError(
-                "Chưa gửi được email đặt lại mật khẩu. Vui lòng thử lại sau.",
-                503
-            );
-        }
-        return { requested: true };
-    }
-
-    // EXPLICIT development-only demo; NEVER enable this on a public server.
+    // Demo-only: frontend forwards the generated token automatically
+    // to the Reset Password screen; learners do not enter any email code.
     return {
         requested: true,
-        resetToken: demoMode ? resetToken : undefined,
+        resetToken,
+        expiresAt: resetPasswordExpires,
     };
 };
 

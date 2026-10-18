@@ -9,14 +9,8 @@ import {
 } from "../utils/authValidation";
 
 export default function useResetPassword(
-    initialResetToken = ""
+    resetToken = ""
 ) {
-    const [resetToken, setResetTokenState] = useState(initialResetToken);
-
-    const setResetToken = (value) => {
-        setResetTokenState(value);
-        setError("");
-    };
     const [
         newPassword,
         setNewPasswordState,
@@ -89,8 +83,6 @@ export default function useResetPassword(
     };
 
     return {
-        resetToken,
-        setResetToken,
         newPassword,
         confirmPassword,
         loading,
