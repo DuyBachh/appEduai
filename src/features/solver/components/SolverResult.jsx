@@ -28,6 +28,8 @@ export default function SolverResult({
     hintIndex,
     onPreviousHint,
     onNextHint,
+    showFullSolution,
+    onToggleFullSolution,
     onReset,
 }) {
     if (!result) {
@@ -73,6 +75,20 @@ export default function SolverResult({
                 </Text>
             </View>
 
+            <TouchableOpacity
+                style={styles.revealButton}
+                onPress={onToggleFullSolution}
+                accessibilityRole="button"
+            >
+                <Text style={styles.revealText}>
+                    {showFullSolution
+                        ? "Ẩn lời giải đầy đủ"
+                        : "Xem lời giải đầy đủ"}
+                </Text>
+            </TouchableOpacity>
+
+            {showFullSolution ? (
+                <>
             <View style={styles.card}>
                 <Text style={styles.title}>
                     📝 Các bước giải
@@ -119,6 +135,8 @@ export default function SolverResult({
                     {result.finalAnswer}
                 </Text>
             </View>
+                </>
+            ) : null}
 
             <TouchableOpacity
                 style={styles.resetButton}
@@ -219,6 +237,19 @@ const styles = StyleSheet.create({
         lineHeight: 24,
         fontWeight: "600",
         color: colors.text,
+    },
+    revealButton: {
+        minHeight: 48,
+        borderRadius: 12,
+        backgroundColor: colors.primary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 16,
+    },
+    revealText: {
+        fontSize: 15,
+        fontWeight: "700",
+        color: colors.white,
     },
     resetButton: {
         borderWidth: 1,
