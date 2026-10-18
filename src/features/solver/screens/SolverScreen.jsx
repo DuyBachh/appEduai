@@ -34,7 +34,7 @@ export default function SolverScreen({ route }) {
         }, 150);
 
         return () => clearTimeout(timer);
-    }, [solver.result]);
+    }, [solver.result, solver.followUpMessages.length]);
 
     return (
         <KeyboardAvoidingView
