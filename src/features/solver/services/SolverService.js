@@ -48,21 +48,33 @@ export default class SolverService {
     }
 
     static async askFollowUp({ originalQuestion, result, question, history = [] }) {
-        const response = await apiRequest("/solver/follow-up", {
-            method: "POST",
-            body: JSON.stringify({
-                originalQuestion,
-                result: {
-                    type: result?.type,
-                    topic: result?.topic,
-                    explanation: result?.explanation,
-                    steps: result?.steps,
-                    finalAnswer: result?.finalAnswer,
-                },
-                question,
-                history,
-            }),
-        });
+        let response;
+
+        try {
+            response = await apiRequest("/solver/follow-up", {
+                method: "POST",
+                body: JSON.stringify({
+                    originalQuestion,
+                    result: {
+                        type: result?.type,
+                        topic: result?.topic,
+                        explanation: result?.explanation,
+                        steps: result?.steps,
+                        finalAnswer: result?.finalAnswer,
+                    },
+                    question,
+                    history,
+                }),
+            });
+        } catch (error) {
+            if (error?.status === 404) {
+                throw new Error(
+                    "Backend chưa nhận diện API hỏi tiếp. Hãy cập nhật và khởi động lại Backend từ branch feature/fr-completion."
+                );
+            }
+
+            throw error;
+        }
 
         const answer = response?.data?.answer;
         if (typeof answer !== "string" || !answer.trim()) {
