@@ -33,7 +33,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-16 | Gửi nội dung phù hợp tới AI API | Có code | Tạo Summary qua backend | Not Run |
 | FR-17 | Tóm tắt dựa trên tài liệu | Cần kiểm thử | Đối chiếu 3 ý với PDF gốc | Not Run |
 | FR-18 | Ngắn/trung bình/chi tiết | Có code | Tạo đủ 3 mức | Not Run |
-| FR-19 | Tóm tắt theo chương/phần | Đã code trên feature | Người dùng xác nhận đã tóm tắt được 3 chương; cần xác nhận không lẫn nội dung giữa các chương và lịch sử hiển thị đúng | **Partial PASS** – tóm tắt 3 chương, chờ kiểm tra phạm vi/lịch sử |
+| FR-19 | Tóm tắt theo chương/phần | Đã hoàn thiện trên branch và kiểm thử iPhone | Phân biệt đúng 3 chương, tóm tắt đúng chương, lưu lịch sử đúng chương | **PASS** (người dùng xác nhận toàn bộ) |
 | FR-20 | Kết quả tóm tắt dễ đọc | Cần kiểm thử | Kiểm tra cấu trúc tóm tắt trên iPhone | Not Run |
 | FR-21 | Lưu bản tóm tắt | Có tự lưu – cần xác nhận | Tạo tóm tắt, thoát và mở lại; đề không buộc nút Lưu riêng | Not Run |
 | FR-22 | Xem lại bản tóm tắt | Có code | Mở lịch sử và chi tiết | Not Run |
@@ -64,7 +64,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 ## Danh sách công việc ưu tiên
 
 1. **FR-12** – Bộ lọc môn học + tự nhóm theo môn học/chủ đề đã **PASS 8/8** theo kết quả kiểm thử người dùng trên iPhone; khuyến nghị thêm edge tests đổi/xóa nhóm và chuẩn hóa môn học.
-2. **FR-19** – Đã code chọn chương/phần và tóm tắt đúng phần trên feature. **Chưa test**; cần chạy Backend cùng branch trên LAN/preview vì Render hiện ở `main`; dùng tài liệu có heading rõ ràng.
+2. **FR-19** – **PASS:** người dùng xác nhận nhận diện, tóm tắt đúng phạm vi ba chương, tên chương và lịch sử đều chính xác trên iPhone.
 3. **FR-30** – Cho lựa chọn lưu/không lưu lịch sử; Backend phải thực sự không lưu khi tắt.
 4. **FR-37** – Kiểm tra Solver OCR→giải; nếu thầy yêu cầu luồng từ Scanner, thêm lệnh chuyển nội dung đã sửa sang Solver.
 5. **FR-45** – Hội thoại hỏi tiếp dựa trên bài toán và lời giải Solver.
@@ -93,3 +93,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 
 - Người dùng xác nhận trên iPhone đã tóm tắt được **3 chương** từ PDF mẫu.
 - Chưa có xác nhận riêng về việc nội dung từng bản chỉ lấy từ chương đã chọn và hiển thị đúng tên chương trong lịch sử, nên chưa kết luận FR-19 PASS đầy đủ.
+
+## Xác nhận FR-19 – 18/10/2026 (cập nhật)
+
+Người dùng xác nhận các kiểm tra cuối FR-19 đều PASS: tóm tắt riêng từng chương không lẫn nội dung và ghi đúng chương trong lịch sử. Đây là kết quả kiểm thử thủ công từ người dùng.
