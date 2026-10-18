@@ -21,6 +21,7 @@ const {
 const { normalizeText, cleanSummaryText } = require("../utils/summaryText");
 const { summarizeLongSource } = require("./summaryReduction");
 const { createServiceError } = require("../utils/serviceError");
+const { getDocumentSections } = require("../utils/documentSections");
 
 // ========================================
 // CONFIG
@@ -122,6 +123,7 @@ const summarizeDocument =
         userId,
         documentId,
         type = "medium",
+        sectionId = null,
     }) => {
         // ========================================
         // VALIDATE
@@ -214,6 +216,25 @@ const summarizeDocument =
         }
 
         // ========================================
+        // FR-19: Select a server-derived section (never use client-supplied text).
+        // ========================================
+        const sections = getDocumentSections(extractedText);
+        const selectedSection = sectionId
+            ? sections.find((part) => part.id === sectionId)
+            : null;
+
+        if (sectionId && !selectedSection) {
+            throw createServiceError(
+                "Chương/phần được chọn không hợp lệ.",
+                400
+            );
+        }
+
+        const summarySource = selectedSection
+            ? selectedSection.text
+            : extractedText;
+
+        // ========================================
         // CACHE
         // ========================================
 
@@ -227,6 +248,7 @@ const summarizeDocument =
                         documentObjectId,
 
                     type,
+                    sectionId: sectionId || null,
                 },
                 {
                     sort: {
@@ -254,7 +276,7 @@ const summarizeDocument =
         );
 
         console.log(
-            `SUMMARY SOURCE LENGTH: ${extractedText.length} chars`
+            `SUMMARY SOURCE LENGTH: ${summarySource.length} chars`
         );
 
         // ========================================
@@ -263,7 +285,7 @@ const summarizeDocument =
 
         const preparedSource =
             await summarizeLongSource(
-                extractedText
+                summarySource
             );
 
         console.log(
@@ -362,9 +384,13 @@ const summarizeDocument =
                 documentId,
 
                 title:
-                    `Tóm tắt - ${documentName}`,
+                    selectedSection
+                        ? `Tóm tắt - ${documentName} - ${selectedSection.title}`
+                        : `Tóm tắt - ${documentName}`,
 
                 type,
+                sectionId: selectedSection?.id || null,
+                sectionTitle: selectedSection?.title || "",
 
                 content,
             });
@@ -383,6 +409,39 @@ const summarizeDocument =
 
         return summary;
     };
+
+// ========================================
+// FR-19: List selectable chapters/parts for a document owned by this user.
+// ========================================
+const listDocumentSections = async ({ userId, documentId }) => {
+    validateObjectId(userId, "User ID");
+    validateObjectId(documentId, "Document ID");
+
+    const document = await client.db("appEduai")
+        .collection("documents")
+        .findOne({
+            _id: new ObjectId(documentId),
+            userId: new ObjectId(userId),
+        });
+
+    if (!document) {
+        throw createServiceError(
+            "Không tìm thấy tài liệu hoặc bạn không có quyền truy cập.",
+            404
+        );
+    }
+
+    const text = normalizeText(document.extractedText);
+    if (!text) {
+        return [];
+    }
+
+    return getDocumentSections(text).map(({ id, title, charCount }) => ({
+        id,
+        title,
+        charCount,
+    }));
+};
 
 // ========================================
 // HISTORY
@@ -597,6 +656,7 @@ const deleteSummaryById =
 
 module.exports = {
     summarizeDocument,
+    listDocumentSections,
     getDocumentSummaries,
     getSummaryById,
     deleteSummaryById,
