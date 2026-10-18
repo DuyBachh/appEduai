@@ -103,23 +103,36 @@ test("password reset: production never permits token-disclosure demo", async () 
     }
 });
 
-test("password reset: email provider sends code but API does not expose it", async () => {
+test("password reset: no email sent, even if mail settings exist", async () => {
     const user = mockUsers();
-    process.env.NODE_ENV = "production";
-    delete process.env.ALLOW_DEMO_RESET_TOKEN;
-    process.env.RESEND_API_KEY = "ci_mock";
-    process.env.RESET_EMAIL_FROM = "appEduai <demo@example.com>";
-    let sent;
-    global.fetch = async (_url, options) => {
-        sent = JSON.parse(options.body);
-        return { ok: true };
+    process.env.NODE_ENV = "development";
+    process.env.ALLOW_DEMO_RESET_TOKEN = "true";
+    process.env.RESEND_API_KEY = "unused_key";
+    process.env.RESET_EMAIL_FROM = "unused@example.com";
+    let emailAttempted = false;
+    global.fetch = async () => {
+        emailAttempted = true;
+        throw new Error("Email must not be sent for this assignment");
     };
     try {
-        const response = await forgotPassword("student@example.com");
-        assert.deepEqual(response, { requested: true });
-        assert.equal(sent.to[0], "student@example.com");
-        assert.match(sent.text, /Mã đặt lại mật khẩu:/);
-        assert.equal(user.resetPasswordToken, undefined); // no raw token stored
+        const result = await forgotPassword("student@example.com");
+        assert.match(result.resetToken, /^[0-9a-f]{48}$/);
+        assert.equal(emailAttempted, false);
+        assert.equal(user.resetPasswordToken, undefined);
+    } finally {
+        restore();
+    }
+});
+
+test("password reset: disabled in local development without demo opt-in", async () => {
+    mockUsers();
+    process.env.NODE_ENV = "development";
+    process.env.ALLOW_DEMO_RESET_TOKEN = "false";
+    try {
+        await assert.rejects(
+            forgotPassword("student@example.com"),
+            { statusCode: 503 }
+        );
     } finally {
         restore();
     }
