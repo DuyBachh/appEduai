@@ -331,7 +331,7 @@ export default function useDocuments(
             "Xóa tài liệu",
             `Bạn có chắc chắn muốn xóa "${getDocumentName(
                 document
-            )}" không?`,
+            )}" không? Các bản tóm tắt và lịch sử Chat liên quan cũng sẽ bị xóa. Không thể hoàn tác.`,
             [
                 {
                     text: "Hủy",
