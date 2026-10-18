@@ -6,6 +6,7 @@ import {
 } from "react-native";
 
 import colors from "../../../styles/colors";
+import { formatAssistantMessage } from "../utils/chatUtils";
 
 export default function MessageBubble({
     message,
@@ -45,7 +46,7 @@ export default function MessageBubble({
                             : styles.aiText,
                     ]}
                 >
-                    {message?.content}
+                    {isUser ? message?.content : formatAssistantMessage(message?.content)}
                 </Text>
 
                 {message?.pending ? (
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
     },
     bubble: {
-        maxWidth: "84%",
+        maxWidth: "90%",
         borderRadius: 16,
         paddingHorizontal: 15,
         paddingVertical: 11,
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
     },
     text: {
         fontSize: 15,
-        lineHeight: 22,
+        lineHeight: 24,
     },
     userText: {
         color: colors.white,
