@@ -122,3 +122,8 @@ Người dùng xác nhận các kiểm tra cuối FR-19 đều PASS: tóm tắt 
 - Giữ ký hiệu toán học hợp lệ như `2 * 3`, `x*y*z`.
 - Bộ test làm sạch văn bản: 7/7 trường hợp đạt qua kiểm tra hàm với môi trường JavaScript; cần chạy `node --test backend/tests/cleanChatAnswer.test.js` trên máy người dùng và kiểm thử Chat với Gemini thực tế.
 - FR-30 vẫn **Not Run** trên iPhone, chưa được coi là PASS.
+
+## Xác nhận hiển thị Chat AI – 18/10/2026
+
+- Hiển thị Chat AI: người dùng xác nhận PASS trên iPhone sau khi sửa lỗi ký tự Markdown thừa.
+- FR-30 (lưu/không lưu lịch sử) là hạng mục riêng; chưa có xác nhận PASS 2 chế độ nên vẫn Not Run.
