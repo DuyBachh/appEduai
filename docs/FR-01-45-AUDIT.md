@@ -27,16 +27,16 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-10 | Đổi tên tài liệu | Có code | Đổi tên và tải lại danh sách | Not Run |
 | FR-11 | Xóa tài liệu | Đã triển khai và kiểm thử trên iPhone, file vật lý và dữ liệu liên quan | Xóa tài liệu, file upload, tóm tắt, Chat; không ảnh hưởng dữ liệu khác | **PASS 7/7** (người dùng xác nhận) |
 | FR-12 | Tổ chức theo môn học/chủ đề | Đã sửa trên feature và test iPhone | Gán môn/chủ đề, nhóm, lọc, chưa phân loại, mở lại | **PASS 8/8** (người dùng xác nhận) |
-| FR-13 | Lưu nội dung tài liệu cho AI | Có code | Trích xuất văn bản rồi chạy Summary/Chat | Not Run |
-| FR-14 | Yêu cầu AI tóm tắt tài liệu | Có code | Chọn file và tạo tóm tắt | Not Run |
-| FR-15 | Trích xuất văn bản PDF | Có code | PDF có text, kiểm tra nội dung trích xuất | Not Run |
-| FR-16 | Gửi nội dung phù hợp tới AI API | Có code | Tạo Summary qua backend | Not Run |
-| FR-17 | Tóm tắt dựa trên tài liệu | Cần kiểm thử | Đối chiếu 3 ý với PDF gốc | Not Run |
-| FR-18 | Ngắn/trung bình/chi tiết | Có code | Tạo đủ 3 mức | Not Run |
+| FR-13 | Lưu nội dung tài liệu cho AI | Đã có code và kiểm thử iPhone | SUM-01 (đọc văn bản đã trích xuất và dùng cho AI) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
+| FR-14 | Yêu cầu AI tóm tắt tài liệu | Đã có code và kiểm thử iPhone | SUM-02 (tạo tóm tắt qua UI) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
+| FR-15 | Trích xuất văn bản PDF | Đã có code và kiểm thử iPhone | SUM-01 (trích xuất văn bản PDF) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
+| FR-16 | Gửi nội dung phù hợp tới AI API | Đã có code và kiểm thử iPhone | SUM-02 (đưa nội dung vào luồng Gemini Summary) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
+| FR-17 | Tóm tắt dựa trên tài liệu | Đã có code và kiểm thử iPhone | SUM-03 (đối chiếu 3 ý với PDF) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
+| FR-18 | Ngắn/trung bình/chi tiết | Đã có code và kiểm thử iPhone | SUM-04/05/06 (ngắn, vừa, chi tiết) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
 | FR-19 | Tóm tắt theo chương/phần | Đã hoàn thiện trên branch và kiểm thử iPhone | Phân biệt đúng 3 chương, tóm tắt đúng chương, lưu lịch sử đúng chương | **PASS** (người dùng xác nhận toàn bộ) |
-| FR-20 | Kết quả tóm tắt dễ đọc | Cần kiểm thử | Kiểm tra cấu trúc tóm tắt trên iPhone | Not Run |
-| FR-21 | Lưu bản tóm tắt | Có tự lưu – cần xác nhận | Tạo tóm tắt, thoát và mở lại; đề không buộc nút Lưu riêng | Not Run |
-| FR-22 | Xem lại bản tóm tắt | Có code | Mở lịch sử và chi tiết | Not Run |
+| FR-20 | Kết quả tóm tắt dễ đọc | Đã có code và kiểm thử iPhone | SUM-07 (định dạng dễ đọc) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
+| FR-21 | Lưu bản tóm tắt | Đã có code và kiểm thử iPhone | SUM-08 (tự lưu lịch sử) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
+| FR-22 | Xem lại bản tóm tắt | Đã có code và kiểm thử iPhone | SUM-09 (mở lại chi tiết và lưu bền) | **PASS** (thuộc bộ SUM-01–09, người dùng xác nhận 9/9) |
 | FR-23 | Đặt câu hỏi về tài liệu | Có code | Hỏi câu có đáp án trong PDF | Not Run |
 | FR-24 | Sử dụng tài liệu làm nguồn | Có code | Hỏi câu dựa vào nội dung PDF | Not Run |
 | FR-25 | Ưu tiên nguồn tài liệu | Cần kiểm thử | Hỏi câu không có trong tài liệu; xem cách AI từ chối | Not Run |
@@ -70,7 +70,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 5. **FR-45** – **PASS:** người dùng xác nhận hỏi tiếp về lời giải hoạt động sau khi khắc phục lỗi 404 Backend local.
 6. **FR-43** – **PASS:** người dùng xác nhận chế độ xem/ẩn lời giải theo yêu cầu hoạt động trên iPhone.
 7. **FR-11** – **PASS 7/7:** người dùng xác nhận đã xóa được tài liệu, file upload vật lý và dữ liệu liên quan; giữ dữ liệu khác nguyên vẹn.
-8. **FR-05** – **PASS 8/8:** người dùng xác nhận phân quyền A/B, API và URL file upload. Tiếp tục nhóm kiểm thử Summary (FR-13 đến FR-22).
+8. **FR-05** – **PASS 8/8:** người dùng xác nhận phân quyền A/B, API và URL file upload. Nhóm Summary FR-13–18, FR-20–22 cũng đã PASS 9/9.
 
 ## Rủi ro demo ngoài FR
 
@@ -271,3 +271,10 @@ Dùng tài liệu PDF có văn bản đọc được và ba chương đã dùng 
 5. Auth + Profile: FR-01–04; FR-03 và luồng reset token phải đánh giá bảo mật cẩn thận.
 
 Đây là các nhóm chờ kiểm thử, **không phải xác nhận PASS**.
+
+## Xác nhận Summary SUM-01–09 – 18/10/2026
+
+- Người dùng xác nhận **9/9 bước PASS** trên iPhone cho nhóm Summary SUM-01 tới SUM-09.
+- Ghi PASS riêng cho FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-20, FR-21, FR-22 (9 FR), không gộp số bước kiểm thử với số lượng FR.
+- FR-19 đã được kiểm thử và PASS trước đó; không thay đổi.
+- **Nhóm tiếp theo:** Documents FR-06–10 (upload PDF/DOCX/TXT, danh sách, metadata, đổi tên). Chờ người dùng thử nên chưa PASS.
