@@ -75,7 +75,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 ## Rủi ro demo ngoài FR
 
 - `/auth/forgot-password` trả `resetToken` trực tiếp cho caller không xác thực: **không an toàn cho production**.
-- `/uploads` là static public không yêu cầu JWT; file lưu trên filesystem Render có thể mất sau deploy.
+- Trên `main`/Render (chưa merge), `/uploads` vẫn dùng static public; branch `feature/fr-completion` đã bỏ route này. File trên filesystem Render có thể mất sau deploy.
 - Chưa có bộ automated regression test chính thức/CI.
 
 ## Quy tắc làm việc
@@ -244,27 +244,27 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 - Người dùng xác nhận **FR-05 PASS 8/8** sau khi kiểm thử hai tài khoản A/B, API truy cập tài liệu và URL file upload trên Backend local. Ghi nhận kết quả kiểm thử thủ công; không suy rộng thành kiểm toán bảo mật toàn diện.
 - Các yêu cầu tiếp theo cần xác nhận trực tiếp: **FR-13 đến FR-18, FR-20 đến FR-22**. FR-19 đã có PASS riêng và không cần kiểm thử lại nếu không phát sinh regression.
 
-## Nhóm hồi quy Summary FR-13–18, FR-20–22 – chờ test
+## Nhóm hồi quy Summary FR-13–18, FR-20–22 – PASS 9/9 trên iPhone
 
 Dùng tài liệu PDF có văn bản đọc được và ba chương đã dùng kiểm thử FR-19, không cần upload lại nếu tài liệu còn trên Backend local. Ưu tiên chế độ **Toàn bộ tài liệu** để phân biệt với FR-19.
 
 | TC | FR bao phủ | Thao tác trên iPhone / Backend | Expected | Actual |
 |---|---|---|---|---|
-| SUM-01 | FR-13, FR-15 | Mở **Tài liệu → Chi tiết** PDF; xem phần **Nội dung tài liệu** | Có văn bản trích xuất, đối chiếu được 2–3 câu với PDF; dữ liệu sẵn cho AI | Not Run |
-| SUM-02 | FR-14, FR-16 | **AI Tóm tắt → Toàn bộ tài liệu → Vừa → Tạo bản tóm tắt**; nếu có thể, xem log Backend | Tạo thành công; Backend dùng văn bản đã trích xuất làm nguồn và gửi cho Gemini (cache có thể được dùng với cùng phạm vi/độ dài) | Not Run |
-| SUM-03 | FR-17 | Đối chiếu ít nhất 3 ý trong tóm tắt với PDF gốc | Những ý chính đúng nguồn, không bịa sự kiện/chương không có trong PDF | Not Run |
-| SUM-04 | FR-18 | Chọn **Ngắn**, tạo tóm tắt toàn bộ | Hiển thị bản ngắn giữ ý chính | Not Run |
-| SUM-05 | FR-18 | Chọn **Vừa**, tạo tóm tắt toàn bộ | Hiển thị bản vừa có thêm giải thích so với ngắn (độ dài không nhất thiết tăng đúng tỉ lệ) | Not Run |
-| SUM-06 | FR-18 | Chọn **Chi tiết**, tạo tóm tắt toàn bộ | Hiển thị bản chi tiết, có nhiều thông tin phù hợp hơn | Not Run |
-| SUM-07 | FR-20 | Đọc kết quả trên iPhone, cuộn, sao chép thử một đoạn | Dễ đọc, xuống dòng hợp lý, không thấy dấu Markdown thừa như `**`/ `#` | Not Run |
-| SUM-08 | FR-21 | Tạo tóm tắt, kiểm tra trạng thái **Đã lưu vào lịch sử** | Tóm tắt được tự lưu; không bắt buộc nút Lưu riêng theo thiết kế hiện tại | Not Run |
-| SUM-09 | FR-22 | Mở **Lịch sử → Chi tiết**, đóng app/mở lại và kiểm tra các bản ngắn/vừa/chi tiết | Có bản ghi theo từng mức; mở lại vẫn hiển thị đầy đủ nội dung, ngày và phạm vi | Not Run |
+| SUM-01 | FR-13, FR-15 | Mở **Tài liệu → Chi tiết** PDF; xem phần **Nội dung tài liệu** | Có văn bản trích xuất, đối chiếu được 2–3 câu với PDF; dữ liệu sẵn cho AI | **PASS** (người dùng xác nhận) |
+| SUM-02 | FR-14, FR-16 | **AI Tóm tắt → Toàn bộ tài liệu → Vừa → Tạo bản tóm tắt**; nếu có thể, xem log Backend | Tạo thành công; Backend dùng văn bản đã trích xuất làm nguồn và gửi cho Gemini (cache có thể được dùng với cùng phạm vi/độ dài) | **PASS** (người dùng xác nhận) |
+| SUM-03 | FR-17 | Đối chiếu ít nhất 3 ý trong tóm tắt với PDF gốc | Những ý chính đúng nguồn, không bịa sự kiện/chương không có trong PDF | **PASS** (người dùng xác nhận) |
+| SUM-04 | FR-18 | Chọn **Ngắn**, tạo tóm tắt toàn bộ | Hiển thị bản ngắn giữ ý chính | **PASS** (người dùng xác nhận) |
+| SUM-05 | FR-18 | Chọn **Vừa**, tạo tóm tắt toàn bộ | Hiển thị bản vừa có thêm giải thích so với ngắn (độ dài không nhất thiết tăng đúng tỉ lệ) | **PASS** (người dùng xác nhận) |
+| SUM-06 | FR-18 | Chọn **Chi tiết**, tạo tóm tắt toàn bộ | Hiển thị bản chi tiết, có nhiều thông tin phù hợp hơn | **PASS** (người dùng xác nhận) |
+| SUM-07 | FR-20 | Đọc kết quả trên iPhone, cuộn, sao chép thử một đoạn | Dễ đọc, xuống dòng hợp lý, không thấy dấu Markdown thừa như `**`/ `#` | **PASS** (người dùng xác nhận) |
+| SUM-08 | FR-21 | Tạo tóm tắt, kiểm tra trạng thái **Đã lưu vào lịch sử** | Tóm tắt được tự lưu; không bắt buộc nút Lưu riêng theo thiết kế hiện tại | **PASS** (người dùng xác nhận) |
+| SUM-09 | FR-22 | Mở **Lịch sử → Chi tiết**, đóng app/mở lại và kiểm tra các bản ngắn/vừa/chi tiết | Có bản ghi theo từng mức; mở lại vẫn hiển thị đầy đủ nội dung, ngày và phạm vi | **PASS** (người dùng xác nhận) |
 
-**Quy tắc xác nhận:** Chỉ ghi PASS cho FR-13–18, FR-20–22 sau khi người dùng thực hiện kiểm thử này. FR-19 đã PASS trước đó; không đánh dấu lại.
+**Kết quả:** Người dùng đã kiểm thử SUM-01 đến SUM-09 và xác nhận PASS 9/9; FR-19 đã PASS riêng từ trước.
 
 **Các đợt còn lại, nên gộp theo màn hình:**
 
-1. Summary: FR-13–18, FR-20–22 (9 TC ở trên).
+1. Summary: FR-13–18, FR-20–22 – **PASS 9/9**, đã hoàn thành.
 2. Documents: FR-06–10 (PDF/DOCX/TXT, danh sách, metadata, đổi tên).
 3. Chat AI: FR-23–29 (hỏi đáp, nguồn tài liệu, ngữ cảnh, mới hội thoại).
 4. Scanner + Solver: FR-31–36, FR-38–42 và FR-44.
@@ -278,3 +278,24 @@ Dùng tài liệu PDF có văn bản đọc được và ba chương đã dùng 
 - Ghi PASS riêng cho FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-20, FR-21, FR-22 (9 FR), không gộp số bước kiểm thử với số lượng FR.
 - FR-19 đã được kiểm thử và PASS trước đó; không thay đổi.
 - **Nhóm tiếp theo:** Documents FR-06–10 (upload PDF/DOCX/TXT, danh sách, metadata, đổi tên). Chờ người dùng thử nên chưa PASS.
+
+## Documents FR-06–10 – kiểm thử iPhone (chưa chạy)
+
+Code đã có: nút **+ Tải lên** dùng Expo DocumentPicker, Backend chấp nhận PDF/DOCX/TXT và trích xuất văn bản; danh sách nhóm tài liệu; màn hình chi tiết hiển thị tên, ngày tải, kích thước, loại file; nút **Đổi tên** với xác nhận. Đã sửa thêm nhãn loại file khi tên được đổi không có phần mở rộng: vẫn ưu tiên `fileType` đã lưu, không lấy toàn bộ tiêu đề làm loại file.
+
+**Dữ liệu test:** Ba file PDF, DOCX, TXT riêng biệt, mỗi file có văn bản thực, dung lượng dưới 10 MB; đặt tên dễ phân biệt. Chạy Backend local và Expo Go cùng branch. Dùng tài khoản thử, không xóa dữ liệu chính.
+
+| TC | FR | Thao tác trên iPhone | Expected | Actual |
+|---|---|---|---|---|
+| DOC-01 | FR-06, FR-07 | Tài liệu → **+ Tải lên** → chọn PDF có text | Upload thành công, có trong danh sách | Not Run |
+| DOC-02 | FR-07 | Tải file DOCX chứa văn bản | Upload thành công, mở chi tiết có nội dung trích xuất | Not Run |
+| DOC-03 | FR-07 | Tải file TXT UTF-8 chứa tiếng Việt | Upload thành công, nội dung trích xuất giữ dấu tiếng Việt | Not Run |
+| DOC-04 | FR-08 | Kiểm tra danh sách ba file, vuốt làm mới, thoát và mở lại màn hình | Đủ ba file, không trùng/mất file, đúng tài khoản | Not Run |
+| DOC-05 | FR-09 | Mở chi tiết từng file | Tên, ngày tải, kích thước, định dạng PDF/DOCX/TXT đúng; kích thước không phải Không xác định với file có dữ liệu | Not Run |
+| DOC-06 | FR-10 | Chọn Đổi tên file PDF thành tên mới **không có đuôi .pdf**, nhấn Lưu | Tên hiển thị thay đổi; loại file vẫn **PDF**; mở chi tiết bình thường | Not Run |
+| DOC-07 | FR-10 | Vuốt làm mới, rời màn hình hoặc đăng nhập lại | Tên mới được lưu bền; các tài liệu khác giữ nguyên | Not Run |
+| DOC-08 | FR-10 | Thử đổi tên thành khoảng trắng rồi Lưu; sau đó thử Đổi tên → Hủy | Không lưu tên trống; Hủy không thay đổi tên tài liệu | Not Run |
+
+**Lưu ý:** Đổi tên trong ứng dụng hiện cập nhật tên hiển thị trong MongoDB, không đổi tên file vật lý trong `backend/uploads`. Không được xem đây là lỗi nếu tài liệu vẫn mở/tóm tắt đúng và loại file còn chính xác. Nút Xóa đã được kiểm thử ở FR-11, không cần xóa lại ở nhóm này.
+
+**Trạng thái:** FR-06–10 **Not Run** cho tới khi người dùng xác nhận cả tám trường hợp trên iPhone. Nếu DOC-02/03 không có dữ liệu OCR/trích xuất hoặc DOC-06 hiển thị sai loại file, ghi FAIL cùng hình/log.
