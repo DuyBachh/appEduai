@@ -44,7 +44,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-27 | Duy trì ngữ cảnh hội thoại | Có code | Hỏi theo chuỗi có đại từ quy chiếu | Not Run |
 | FR-28 | Câu hỏi tiếp theo theo đáp án trước | Có code | Hỏi tiếp cùng hội thoại | Not Run |
 | FR-29 | Bắt đầu hội thoại mới | Có code | Dùng nút New Chat | Not Run |
-| FR-30 | Cho chọn lưu/không lưu lịch sử | Đã code Frontend + Backend ở branch – chờ test | Bật: tạo hội thoại/lưu và mở lại; Tắt: không ghi MongoDB nhưng vẫn hỏi tiếp trong phiên; đổi chế độ khởi tạo chat mới | **Not Run** |
+| FR-30 | Cho chọn lưu/không lưu lịch sử | Đã triển khai trên branch, kiểm thử iPhone | Bật lưu và mở lại; tắt lưu, hỏi tiếp trong phiên, không xuất hiện trong lịch sử; đổi chế độ | **PASS** (người dùng xác nhận) |
 | FR-31 | Chụp ảnh đề bài | Có code | Dùng camera trên iPhone | Not Run |
 | FR-32 | Chọn ảnh từ thiết bị | Có code | Chọn ảnh từ Photos | Not Run |
 | FR-33 | OCR/multimodal AI | Có code | Chạy nhận dạng văn bản từ ảnh | Not Run |
@@ -65,7 +65,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 
 1. **FR-12** – Bộ lọc môn học + tự nhóm theo môn học/chủ đề đã **PASS 8/8** theo kết quả kiểm thử người dùng trên iPhone; khuyến nghị thêm edge tests đổi/xóa nhóm và chuẩn hóa môn học.
 2. **FR-19** – **PASS:** người dùng xác nhận nhận diện, tóm tắt đúng phạm vi ba chương, tên chương và lịch sử đều chính xác trên iPhone.
-3. **FR-30** – Đã thêm công tắc lưu lịch sử ở Chat và nhánh Backend không ghi MongoDB khi tắt; cần kiểm thử toàn bộ quy trình trên iPhone trước khi ghi PASS.
+3. **FR-30** – **PASS:** người dùng xác nhận các luồng bật/tắt lưu lịch sử, hỏi tiếp trong phiên và chuyển chế độ trên iPhone.
 4. **FR-37** – Kiểm tra Solver OCR→giải; nếu thầy yêu cầu luồng từ Scanner, thêm lệnh chuyển nội dung đã sửa sang Solver.
 5. **FR-45** – Hội thoại hỏi tiếp dựa trên bài toán và lời giải Solver.
 6. **FR-43** – Nếu cần demo thao tác yêu cầu riêng, chỉ hiển thị lời giải hoàn chỉnh khi nhấn nút; câu chữ đề là “có thể”.
@@ -127,3 +127,7 @@ Người dùng xác nhận các kiểm tra cuối FR-19 đều PASS: tóm tắt 
 
 - Hiển thị Chat AI: người dùng xác nhận PASS trên iPhone sau khi sửa lỗi ký tự Markdown thừa.
 - FR-30 (lưu/không lưu lịch sử) là hạng mục riêng; chưa có xác nhận PASS 2 chế độ nên vẫn Not Run.
+
+## Xác nhận FR-30 – 18/10/2026
+
+Người dùng xác nhận kiểm thử FR-30 **PASS** sau khi được hướng dẫn kiểm tra chế độ lưu, không lưu, hỏi tiếp và đổi chế độ. Đây là báo cáo kiểm thử thủ công từ người dùng. Chưa có xác nhận kiểm tra trực tiếp MongoDB độc lập.
