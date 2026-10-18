@@ -87,17 +87,14 @@ test("password reset: hashed, one-use code and unknown email privacy", async () 
     }
 });
 
-test("password reset: production never permits token-disclosure demo", async () => {
+test("password reset: original no-email demo returns code to Expo even on Render", async () => {
     mockUsers();
     process.env.NODE_ENV = "production";
-    process.env.ALLOW_DEMO_RESET_TOKEN = "true";
-    delete process.env.RESEND_API_KEY;
-    delete process.env.RESET_EMAIL_FROM;
+    delete process.env.ALLOW_DEMO_RESET_TOKEN;
     try {
-        await assert.rejects(
-            forgotPassword("student@example.com"),
-            { statusCode: 503 }
-        );
+        const result = await forgotPassword("student@example.com");
+        assert.match(result.resetToken, /^[0-9a-f]{48}$/);
+        assert.equal(result.requested, true);
     } finally {
         restore();
     }
@@ -124,15 +121,13 @@ test("password reset: no email sent, even if mail settings exist", async () => {
     }
 });
 
-test("password reset: disabled in local development without demo opt-in", async () => {
+test("password reset: no additional env setting required for demo", async () => {
     mockUsers();
     process.env.NODE_ENV = "development";
-    process.env.ALLOW_DEMO_RESET_TOKEN = "false";
+    delete process.env.ALLOW_DEMO_RESET_TOKEN;
     try {
-        await assert.rejects(
-            forgotPassword("student@example.com"),
-            { statusCode: 503 }
-        );
+        const result = await forgotPassword("student@example.com");
+        assert.match(result.resetToken, /^[0-9a-f]{48}$/);
     } finally {
         restore();
     }
