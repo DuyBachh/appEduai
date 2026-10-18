@@ -7,6 +7,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 ## Quy ước trạng thái
 
 - **Có code**: Tìm thấy đường triển khai trong source; **chưa mặc nhiên PASS**.
+- **Not Run trong bảng kiểm thử FR:** chỉ cho biết chưa có biên bản kiểm thử riêng theo bảng audit này; **không có nghĩa chức năng chưa được code hoặc phải kiểm thử lại từng FR**. Các module cũ đã có các lượt kiểm thử trước khi rà soát 45 FR. Ưu tiên một lượt regression cuối xuyên suốt ứng dụng.
 - **Cần kiểm thử**: Chưa đủ bằng chứng hành vi thực tế.
 - **Chưa đầy đủ/Chưa thấy/Lệch luồng**: Cần sửa hoặc làm rõ cách hiểu yêu cầu.
 - **Đã sửa trên feature – chưa test**: Có commit trên branch `feature/fr-completion`, chưa merge `main`.
@@ -299,3 +300,26 @@ Code đã có: nút **+ Tải lên** dùng Expo DocumentPicker, Backend chấp n
 **Lưu ý:** Đổi tên trong ứng dụng hiện cập nhật tên hiển thị trong MongoDB, không đổi tên file vật lý trong `backend/uploads`. Không được xem đây là lỗi nếu tài liệu vẫn mở/tóm tắt đúng và loại file còn chính xác. Nút Xóa đã được kiểm thử ở FR-11, không cần xóa lại ở nhóm này.
 
 **Trạng thái:** FR-06–10 **Not Run** cho tới khi người dùng xác nhận cả tám trường hợp trên iPhone. Nếu DOC-02/03 không có dữ liệu OCR/trích xuất hoặc DOC-06 hiển thị sai loại file, ghi FAIL cùng hình/log.
+
+## Release gate – Chỉ kiểm thử tổng hợp một lần trước khi merge main
+
+**Trạng thái code:** Đã rà soát các đường triển khai cho FR-01–45; các phần bổ sung/khắc phục tập trung trên `feature/fr-completion`. **Không yêu cầu kiểm thử lại từng FR**. Các FR đã được người dùng xác nhận trong bảng vẫn được giữ nguyên. Các FR khác không tự động coi là PASS chỉ vì tìm thấy code.
+
+**Automated regression:** GitHub Actions `.github/workflows/regression.yml` chạy `npm test` (Node backend tests) và `npm run check:ios` (Expo iOS export). Workflow thành công ở commit `aa7432932a2f0b8fb997e677a335adcf027e0905` trước bản cập nhật tài liệu này. Link: https://github.com/DuyBachh/appEduai/actions/runs/39143213569
+
+**Smoke test duy nhất trên iPhone với Backend local:**
+
+| ST | Luồng chính | Điều kiện PASS |
+|---|---|---|
+| FINAL-01 | Auth: đăng ký tài khoản thử, đăng nhập sai/đúng, cập nhật profile, đăng xuất | Login/profile ổn và token hoạt động |
+| FINAL-02 | Quên mật khẩu: demo local bật `NODE_ENV=development` và `ALLOW_DEMO_RESET_TOKEN=true`; nhập mã đặt lại, reset và đăng nhập lại | Mã chỉ dùng một lần, mật khẩu mới hoạt động; token cũ không dùng lại được |
+| FINAL-03 | Documents: upload PDF/DOCX/TXT, xem chi tiết metadata, đổi tên, nhóm/lọc | File hiển thị đúng loại, văn bản được trích xuất |
+| FINAL-04 | Summary: 3 độ dài, phạm vi toàn file/chương, mở lịch sử | Nội dung đúng nguồn, lịch sử còn sau khi rời màn hình |
+| FINAL-05 | Chat: hỏi theo tài liệu, hỏi tiếp, New Chat, bật/tắt lưu lịch sử | Ngữ cảnh và chế độ lưu hoạt động |
+| FINAL-06 | Scanner/OCR: chọn ảnh và chụp ảnh; sửa OCR rồi chuyển sang Solver | Văn bản chỉnh sửa chuyển chính xác |
+| FINAL-07 | Solver: phân loại, gợi ý trước/tiếp, ẩn/xem lời giải và hỏi tiếp | Kết quả đúng bài, hỏi tiếp giữ ngữ cảnh |
+| FINAL-08 | Bảo vệ dữ liệu: A/B không xem được nhau; xóa file thử và dữ liệu liên quan | Phân quyền đúng, file và history liên quan bị xóa |
+
+**Điều kiện để merge `main`:** FINAL-01 tới FINAL-08 PASS trên iPhone và CI xanh tại HEAD. Cần lưu ý Backend Render trỏ `main` có thể tự deploy; email reset production yêu cầu `RESEND_API_KEY` và `RESET_EMAIL_FROM` được cấu hình tại host (không có thì API báo 503). Không sử dụng cờ demo reset công khai.
+
+**PR chuẩn bị merge:** https://github.com/DuyBachh/appEduai/pull/1 (draft, chưa merge).
