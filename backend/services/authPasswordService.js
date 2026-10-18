@@ -5,23 +5,9 @@ const { createServiceError } = require("../utils/serviceError");
 
 const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
-const isLocalDemoEnabled = () =>
-    process.env.NODE_ENV === "development" &&
-    process.env.ALLOW_DEMO_RESET_TOKEN === "true";
-
 const forgotPassword = async (email) => {
     if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         throw createServiceError("Email không hợp lệ.", 400);
-    }
-
-    // The assignment's reset flow is a local-only demo: no email/OTP service.
-    // Returning a token to an unauthenticated caller must NEVER be enabled
-    // on a publicly reachable server; it permits account takeover.
-    if (!isLocalDemoEnabled()) {
-        throw createServiceError(
-            "Quên mật khẩu bản demo chỉ hỗ trợ Backend local, không gửi email.",
-            503
-        );
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -52,8 +38,8 @@ const forgotPassword = async (email) => {
         }
     );
 
-    // Demo-only: frontend forwards the generated token automatically
-    // to the Reset Password screen; learners do not enter any email code.
+    // Restore the original classroom flow: return the temporary reset token
+    // to the app, without email or OTP. Do not use with real accounts.
     return {
         requested: true,
         resetToken,
@@ -104,5 +90,4 @@ const resetPassword = async ({ token, newPassword }) => {
 module.exports = {
     forgotPassword,
     resetPassword,
-    isLocalDemoEnabled,
 };
