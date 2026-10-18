@@ -9,6 +9,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    View,
 } from "react-native";
 
 import colors from "../../../styles/colors";
@@ -19,6 +20,7 @@ import useSolver from "../hooks/useSolver";
 
 export default function SolverScreen({ route }) {
     const scrollRef = useRef(null);
+    const resultTopRef = useRef(0);
     const initialQuestion = route?.params?.initialQuestion || "";
     const solver = useSolver(initialQuestion);
 
@@ -28,13 +30,26 @@ export default function SolverScreen({ route }) {
         }
 
         const timer = setTimeout(() => {
-            scrollRef.current?.scrollToEnd({
+            scrollRef.current?.scrollTo({
+                y: resultTopRef.current,
                 animated: true,
             });
+        }, 200);
+
+        return () => clearTimeout(timer);
+    }, [solver.result]);
+
+    useEffect(() => {
+        if (solver.followUpMessages.length === 0) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            scrollRef.current?.scrollToEnd({ animated: true });
         }, 150);
 
         return () => clearTimeout(timer);
-    }, [solver.result, solver.followUpMessages.length]);
+    }, [solver.followUpMessages.length]);
 
     return (
         <KeyboardAvoidingView
@@ -93,7 +108,12 @@ export default function SolverScreen({ route }) {
                     <LoadingCard />
                 ) : null}
 
-                <SolverResult
+                <View
+                    onLayout={(event) => {
+                        resultTopRef.current = event.nativeEvent.layout.y;
+                    }}
+                >
+                    <SolverResult
                     result={solver.result}
                     hintIndex={solver.hintIndex}
                     onPreviousHint={solver.previousHint}
@@ -108,7 +128,8 @@ export default function SolverScreen({ route }) {
                     onSendFollowUp={solver.askFollowUp}
                     resetDisabled={solver.loading}
                     onReset={solver.reset}
-                />
+                    />
+                </View>
             </ScrollView>
         </KeyboardAvoidingView>
     );
