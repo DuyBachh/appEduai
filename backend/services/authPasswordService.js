@@ -14,9 +14,10 @@ const forgotPassword = async (email) => {
     const users = client.db("appEduai").collection("users");
     const user = await users.findOne({ email: normalizedEmail });
 
-    // Never reveal whether an email is registered.
+    // For the classroom demo, match the original FR-03 behavior:
+    // an unknown email is a validation error, not a successful reset.
     if (!user) {
-        return { requested: true };
+        throw createServiceError("Email không tồn tại.", 404);
     }
 
     const resetToken = crypto.randomBytes(24).toString("hex");

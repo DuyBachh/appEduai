@@ -55,7 +55,7 @@ const mockUsers = () => {
 };
 
 // Environment and client stubs are shared; keep this entire suite sequential.
-test("password reset: hashed, one-use code and unknown email privacy", async () => {
+test("password reset: 404 for unknown email, hashed one-use code for registered email", async () => {
     const user = mockUsers();
     process.env.NODE_ENV = "development";
     process.env.ALLOW_DEMO_RESET_TOKEN = "true";
@@ -63,8 +63,10 @@ test("password reset: hashed, one-use code and unknown email privacy", async () 
     delete process.env.RESET_EMAIL_FROM;
 
     try {
-        const missing = await forgotPassword("unknown@example.com");
-        assert.deepEqual(missing, { requested: true });
+        await assert.rejects(
+            forgotPassword("unknown@example.com"),
+            { statusCode: 404, message: "Email không tồn tại." }
+        );
 
         const issued = await forgotPassword("student@example.com");
         assert.match(issued.resetToken, /^[0-9a-f]{48}$/);
