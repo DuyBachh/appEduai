@@ -1,7 +1,11 @@
 const { ObjectId } = require("mongodb");
-const { client } = require("../config/database");
-const { validateObjectId } = require("./documentCommon");
 const { createServiceError } = require("../utils/serviceError");
+
+const validateObjectId = (value, message) => {
+    if (!ObjectId.isValid(value)) {
+        throw createServiceError(message, 400);
+    }
+};
 const { resolveManagedUploadPath, removeManagedUpload } = require("../utils/managedUpload");
 
 // Keep this helper isolated so its safety and cascading behavior can be tested
@@ -97,10 +101,14 @@ const deleteDocumentWithDependencies = async (
     };
 };
 
-const deleteDocument = async ({ userId, documentId }) =>
-    deleteDocumentWithDependencies(
+const deleteDocument = async ({ userId, documentId }) => {
+    // Delay loading the real database client so isolated tests never require
+    // production MongoDB configuration or an active connection.
+    const { client } = require("../config/database");
+    return deleteDocumentWithDependencies(
         { userId, documentId },
         { db: client.db("appEduai") }
     );
+};
 
 module.exports = { deleteDocument, deleteDocumentWithDependencies };
