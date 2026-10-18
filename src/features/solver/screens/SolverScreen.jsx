@@ -104,8 +104,9 @@ export default function SolverScreen({ route }) {
                     followUpMessages={solver.followUpMessages}
                     followUpLoading={solver.followUpLoading}
                     followUpError={solver.followUpError}
-                    onFollowUpChange={solver.setFollowUpText}
+                    onFollowUpChange={solver.changeFollowUpText}
                     onSendFollowUp={solver.askFollowUp}
+                    resetDisabled={solver.loading}
                     onReset={solver.reset}
                 />
             </ScrollView>
