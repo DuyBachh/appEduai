@@ -1,0 +1,26 @@
+name: Final regression
+on:
+  push:
+    branches: [feature/fr-completion, main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install app dependencies
+        run: npm ci
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+      - name: Run Node backend tests
+        run: npm test
+      - name: Verify iOS Expo bundle
+        run: npm run check:ios
