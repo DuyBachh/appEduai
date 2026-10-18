@@ -1,4 +1,5 @@
 import {
+    useEffect,
     useMemo,
     useState,
 } from "react";
@@ -30,6 +31,59 @@ export default function useSummary(
 
     const [summary, setSummary] =
         useState("");
+
+    const [sections, setSections] = useState([]);
+    const [sectionsLoading, setSectionsLoading] = useState(true);
+    const [sectionsError, setSectionsError] = useState("");
+    const [selectedSectionId, setSelectedSectionId] = useState(null);
+
+    useEffect(() => {
+        let active = true;
+        setSelectedSectionId(null);
+        setSections([]);
+        setSectionsError("");
+
+        if (!documentId) {
+            setSectionsLoading(false);
+            return () => { active = false; };
+        }
+
+        setSectionsLoading(true);
+        SummaryService.getSections(documentId)
+            .then((items) => {
+                if (active) {
+                    setSections(items);
+                }
+            })
+            .catch((requestError) => {
+                if (active) {
+                    setSectionsError(
+                        requestError.message ||
+                        "Không tải được danh sách chương/phần."
+                    );
+                }
+            })
+            .finally(() => {
+                if (active) {
+                    setSectionsLoading(false);
+                }
+            });
+
+        return () => { active = false; };
+    }, [documentId]);
+
+    const selectedSection = useMemo(
+        () => sections.find((section) => section.id === selectedSectionId) || null,
+        [sections, selectedSectionId]
+    );
+
+    const changeSection = (value) => {
+        if (isLoading) return;
+        setSelectedSectionId(value);
+        setSummary("");
+        setSummaryRecord(null);
+        setError("");
+    };
 
     const [
         summaryRecord,
@@ -73,7 +127,8 @@ export default function useSummary(
                 const result =
                     await SummaryService.createSummary(
                         documentId,
-                        summaryLength
+                        summaryLength,
+                        selectedSectionId
                     );
 
                 setSummary(
@@ -109,6 +164,12 @@ export default function useSummary(
         summaryLength,
         summary,
         summaryRecord,
+        sections,
+        sectionsLoading,
+        sectionsError,
+        selectedSectionId,
+        selectedSection,
+        changeSection,
         isLoading,
         error,
         typeLabel,

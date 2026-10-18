@@ -15,8 +15,9 @@ export default function OcrResultCard({
     loading,
     onChangeText,
     onRestore,
+    onAnalyze,
 }) {
-    if (!text) {
+    if (!text && !originalText) {
         return null;
     }
 
@@ -59,6 +60,28 @@ export default function OcrResultCard({
             <Text style={styles.count}>
                 {text.length} ký tự
             </Text>
+
+            {text.length > 6000 ? (
+                <Text style={styles.warning}>
+                    Nội dung vượt quá 6000 ký tự. Hãy rút gọn đề bài trước khi chuyển sang AI Solver.
+                </Text>
+            ) : null}
+
+            <TouchableOpacity
+                style={[
+                    styles.analyzeButton,
+                    (!text.trim() || text.length > 6000 || loading) &&
+                        styles.analyzeDisabled,
+                ]}
+                onPress={onAnalyze}
+                disabled={!text.trim() || text.length > 6000 || loading}
+                accessibilityRole="button"
+                accessibilityLabel="Đưa đề bài sang AI Solver"
+            >
+                <Text style={styles.analyzeButtonText}>
+                    Đưa sang AI Solver →
+                </Text>
+            </TouchableOpacity>
         </View>
     );
 }
@@ -110,5 +133,26 @@ const styles=StyleSheet.create({
         textAlign:"right",
         fontSize:12,
         color:colors.gray,
+    },
+    warning: {
+        marginTop: 8,
+        fontSize: 13,
+        color: colors.error,
+    },
+    analyzeButton: {
+        marginTop: 14,
+        minHeight: 48,
+        borderRadius: 10,
+        backgroundColor: colors.primary,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    analyzeDisabled: {
+        opacity: 0.5,
+    },
+    analyzeButtonText: {
+        color: colors.white,
+        fontSize: 15,
+        fontWeight: "700",
     },
 });

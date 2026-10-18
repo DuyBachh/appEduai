@@ -16,6 +16,9 @@ export default function useChat({
         routeConversationId
     );
 
+    // Preserve the existing behavior until the user opts out.
+    const [saveHistory, setSaveHistory] = useState(true);
+
     const [message, setMessage] =
         useState("");
 
@@ -45,6 +48,11 @@ export default function useChat({
                 setActiveConversationId(
                     routeConversationId
                 );
+
+                if (routeConversationId) {
+                    // An existing conversation always belongs to saved history.
+                    setSaveHistory(true);
+                }
 
                 if (!routeConversationId) {
                     setMessages([]);
@@ -120,6 +128,21 @@ export default function useChat({
         const tempId =
             `temp-${Date.now()}`;
 
+        // Send recent local messages as context only in non-saving mode.
+        const ephemeralHistory = !saveHistory
+            ? messages
+                  .filter(
+                      (item) =>
+                          !item.pending &&
+                          (item.role === "user" || item.role === "assistant")
+                  )
+                  .slice(-12)
+                  .map((item) => ({
+                      role: item.role,
+                      content: String(item.content || "").slice(0, 4000),
+                  }))
+            : [];
+
         const temporaryMessage = {
             _id: tempId,
             role: "user",
@@ -145,6 +168,8 @@ export default function useChat({
                     conversationId:
                         activeConversationId,
                     question,
+                    saveHistory,
+                    ephemeralHistory,
                 });
 
             const newConversationId =
@@ -154,7 +179,7 @@ export default function useChat({
                       )
                     : activeConversationId;
 
-            if (newConversationId) {
+            if (saveHistory && newConversationId) {
                 setActiveConversationId(
                     newConversationId
                 );
@@ -216,6 +241,23 @@ export default function useChat({
         }
     };
 
+    const changeSaveHistory = (value) => {
+        if (sending || loadingMessages || typeof value !== "boolean") {
+            return false;
+        }
+
+        if (saveHistory === value) {
+            return true;
+        }
+
+        setSaveHistory(value);
+        setActiveConversationId(null);
+        setMessages([]);
+        setMessage("");
+        setError("");
+        return true;
+    };
+
     const startNewChat = () => {
         if (sending) {
             return false;
@@ -231,6 +273,8 @@ export default function useChat({
 
     return {
         activeConversationId,
+        saveHistory,
+        changeSaveHistory,
         message,
         messages,
         loadingMessages,

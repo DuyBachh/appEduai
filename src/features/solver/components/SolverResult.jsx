@@ -8,6 +8,7 @@ import {
 
 import colors from "../../../styles/colors";
 import HintCard from "./HintCard";
+import SolverFollowUp from "./SolverFollowUp";
 
 function InfoBox({ label, value }) {
     return (
@@ -28,6 +29,15 @@ export default function SolverResult({
     hintIndex,
     onPreviousHint,
     onNextHint,
+    showFullSolution,
+    onToggleFullSolution,
+    followUpText,
+    followUpMessages,
+    followUpLoading,
+    followUpError,
+    onFollowUpChange,
+    onSendFollowUp,
+    resetDisabled,
     onReset,
 }) {
     if (!result) {
@@ -73,6 +83,20 @@ export default function SolverResult({
                 </Text>
             </View>
 
+            <TouchableOpacity
+                style={styles.revealButton}
+                onPress={onToggleFullSolution}
+                accessibilityRole="button"
+            >
+                <Text style={styles.revealText}>
+                    {showFullSolution
+                        ? "Ẩn lời giải đầy đủ"
+                        : "Xem lời giải đầy đủ"}
+                </Text>
+            </TouchableOpacity>
+
+            {showFullSolution ? (
+                <>
             <View style={styles.card}>
                 <Text style={styles.title}>
                     📝 Các bước giải
@@ -119,10 +143,22 @@ export default function SolverResult({
                     {result.finalAnswer}
                 </Text>
             </View>
+                </>
+            ) : null}
+
+            <SolverFollowUp
+                value={followUpText}
+                messages={followUpMessages}
+                loading={followUpLoading}
+                error={followUpError}
+                onChangeText={onFollowUpChange}
+                onSend={onSendFollowUp}
+            />
 
             <TouchableOpacity
-                style={styles.resetButton}
+                style={[styles.resetButton, resetDisabled && styles.disabledButton]}
                 onPress={onReset}
+                disabled={resetDisabled}
             >
                 <Text style={styles.resetText}>
                     + Giải bài khác
@@ -220,6 +256,19 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: colors.text,
     },
+    revealButton: {
+        minHeight: 48,
+        borderRadius: 12,
+        backgroundColor: colors.primary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 16,
+    },
+    revealText: {
+        fontSize: 15,
+        fontWeight: "700",
+        color: colors.white,
+    },
     resetButton: {
         borderWidth: 1,
         borderColor: colors.border,
@@ -227,6 +276,9 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         alignItems: "center",
         backgroundColor: colors.white,
+    },
+    disabledButton: {
+        opacity: 0.45,
     },
     resetText: {
         fontSize: 15,

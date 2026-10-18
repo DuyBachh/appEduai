@@ -9,6 +9,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    View,
 } from "react-native";
 
 import colors from "../../../styles/colors";
@@ -17,9 +18,11 @@ import SolverResult from "../components/SolverResult";
 import LoadingCard from "../components/LoadingCard";
 import useSolver from "../hooks/useSolver";
 
-export default function SolverScreen() {
+export default function SolverScreen({ route }) {
     const scrollRef = useRef(null);
-    const solver = useSolver();
+    const resultTopRef = useRef(0);
+    const initialQuestion = route?.params?.initialQuestion || "";
+    const solver = useSolver(initialQuestion);
 
     useEffect(() => {
         if (!solver.result) {
@@ -27,13 +30,26 @@ export default function SolverScreen() {
         }
 
         const timer = setTimeout(() => {
-            scrollRef.current?.scrollToEnd({
+            scrollRef.current?.scrollTo({
+                y: resultTopRef.current,
                 animated: true,
             });
-        }, 150);
+        }, 200);
 
         return () => clearTimeout(timer);
     }, [solver.result]);
+
+    useEffect(() => {
+        if (solver.followUpMessages.length === 0) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            scrollRef.current?.scrollToEnd({ animated: true });
+        }, 150);
+
+        return () => clearTimeout(timer);
+    }, [solver.followUpMessages.length]);
 
     return (
         <KeyboardAvoidingView
@@ -67,6 +83,12 @@ export default function SolverScreen() {
                     Nhập bài tập hoặc chụp ảnh để AI phân tích và giải từng bước.
                 </Text>
 
+                {initialQuestion ? (
+                    <Text style={styles.importNotice}>
+                        Đề bài được chuyển từ Scanner. Hãy kiểm tra nội dung trước khi giải.
+                    </Text>
+                ) : null}
+
                 <SolverForm
                     question={solver.question}
                     selectedImage={solver.selectedImage}
@@ -86,13 +108,28 @@ export default function SolverScreen() {
                     <LoadingCard />
                 ) : null}
 
-                <SolverResult
+                <View
+                    onLayout={(event) => {
+                        resultTopRef.current = event.nativeEvent.layout.y;
+                    }}
+                >
+                    <SolverResult
                     result={solver.result}
                     hintIndex={solver.hintIndex}
                     onPreviousHint={solver.previousHint}
                     onNextHint={solver.nextHint}
+                    showFullSolution={solver.showFullSolution}
+                    onToggleFullSolution={solver.toggleFullSolution}
+                    followUpText={solver.followUpText}
+                    followUpMessages={solver.followUpMessages}
+                    followUpLoading={solver.followUpLoading}
+                    followUpError={solver.followUpError}
+                    onFollowUpChange={solver.changeFollowUpText}
+                    onSendFollowUp={solver.askFollowUp}
+                    resetDisabled={solver.loading}
                     onReset={solver.reset}
-                />
+                    />
+                </View>
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -119,5 +156,11 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         color: colors.gray,
         marginBottom: 20,
+    },
+    importNotice: {
+        color: colors.primary,
+        fontSize: 13,
+        lineHeight: 20,
+        marginBottom: 14,
     },
 });

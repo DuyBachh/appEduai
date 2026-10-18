@@ -2,8 +2,12 @@ import {
     getToken,
 } from "./tokenStorage";
 
-export const API_BASE_URL =
-    "https://appeduai-backend.onrender.com/api";
+// Expo replaces EXPO_PUBLIC_* at bundle time. For local testing set
+// EXPO_PUBLIC_API_BASE_URL in a root .env file, without editing source.
+export const API_BASE_URL = (
+    process.env.EXPO_PUBLIC_API_BASE_URL ||
+    "https://appeduai-backend.onrender.com/api"
+).replace(/\/+$/, "");
 
 const isFormData = (value) => {
     return (

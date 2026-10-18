@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 
 // ========================================
 // ROUTES
@@ -136,19 +135,10 @@ app.use(
     })
 );
 
-// ========================================
-// STATIC UPLOADS
-// ========================================
-
-app.use(
-    "/uploads",
-    express.static(
-        path.join(
-            __dirname,
-            "uploads"
-        )
-    )
-);
+// FR-05: Original uploads are private study materials.
+// Never serve backend/uploads as an unauthenticated static directory.
+// Authorized document operations use /api/documents and ownership checks.
+// The raw /uploads/* URL deliberately has no public file handler.
 
 // ========================================
 // TEST ROOT

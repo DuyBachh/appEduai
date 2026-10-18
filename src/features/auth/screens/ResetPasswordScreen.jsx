@@ -9,6 +9,7 @@ import {
 import colors from "../../../styles/colors";
 import AuthButton from "../components/AuthButton";
 import AuthError from "../components/AuthError";
+import AuthField from "../components/AuthField";
 import AuthHeader from "../components/AuthHeader";
 import AuthLayout from "../components/AuthLayout";
 import PasswordField from "../components/PasswordField";
@@ -58,8 +59,18 @@ export default function ResetPasswordScreen({
         <AuthLayout>
             <AuthHeader
                 title="Đặt lại mật khẩu"
-                subtitle="Tạo mật khẩu mới cho tài khoản"
+                subtitle="Dán mã nhận được qua email rồi nhập mật khẩu mới."
                 extra={email || undefined}
+            />
+
+            <AuthField
+                label="Mã đặt lại mật khẩu"
+                value={form.resetToken}
+                onChangeText={form.setResetToken}
+                placeholder="Dán mã nhận được qua email"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!form.loading}
             />
 
             <PasswordField

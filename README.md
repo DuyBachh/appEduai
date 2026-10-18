@@ -21,11 +21,11 @@
 ## Chức năng hiện có
 
 - **Tài khoản:** Đăng ký, đăng nhập/đăng xuất, xem và cập nhật hồ sơ, quên/đặt lại mật khẩu (demo).
-- **Tài liệu:** Upload PDF/DOCX/TXT; xem danh sách, thông tin/chi tiết, đổi tên, phân loại môn học/chủ đề và xóa bản ghi. Giới hạn **10 MB/file**.
-- **AI Summary:** Tóm tắt tài liệu với 3 mức ngắn/trung bình/chi tiết; xem và quản lý lịch sử tóm tắt.
-- **AI Chat:** Đặt câu hỏi dựa trên tài liệu, tiếp tục hội thoại, xem lịch sử và xóa hội thoại.
+- **Tài liệu:** Upload PDF/DOCX/TXT; xem danh sách, đổi tên, phân loại môn học/chủ đề, xóa bản ghi kèm file vật lý và dữ liệu AI liên quan. Giới hạn **10 MB/file**.
+- **AI Summary:** Tóm tắt tài liệu với 3 mức ngắn/vừa/chi tiết, chọn chương/phần hoặc toàn bộ tài liệu; tự lưu, xem và quản lý lịch sử.
+- **AI Chat:** Đặt câu hỏi dựa trên tài liệu, tiếp tục hội thoại; tùy chọn bật/tắt lưu lịch sử và xóa hội thoại.
 - **Scanner/OCR:** Chụp ảnh hoặc chọn ảnh; nhận dạng văn bản, xem/chỉnh sửa kết quả. Backend hỗ trợ JPG/JPEG, PNG, WEBP, HEIC, HEIF, tối đa **10 MB/ảnh**.
-- **AI Solver:** Nhập câu hỏi hoặc lấy nội dung từ ảnh qua OCR; xem gợi ý từng bước, giải thích và lời giải tham khảo.
+- **AI Solver:** Nhập đề hoặc chuyển OCR từ Scanner; xem gợi ý, chỉ mở lời giải đầy đủ khi cần và hỏi tiếp theo ngữ cảnh bài giải.
 
 ## Cấu trúc dự án
 
@@ -78,7 +78,7 @@ appEduai/
 ### 1. Tải project
 
 ~~~bash
-git clone -b refactor/project-structure https://github.com/DuyBachh/appEduai.git
+git clone https://github.com/DuyBachh/appEduai.git
 cd appEduai
 npm install
 ~~~
@@ -110,6 +110,9 @@ NODE_ENV=development
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
 GEMINI_API_KEY=your_gemini_api_key
+RESEND_API_KEY=
+RESET_EMAIL_FROM=
+ALLOW_DEMO_RESET_TOKEN=false
 ~~~
 
 **Không commit** .env, khóa API, JWT secret hoặc thông tin truy cập MongoDB.
@@ -129,18 +132,13 @@ Backend phải kết nối MongoDB thành công mới mở server. Địa chỉ 
 
 ### 4. Chọn Backend cho Expo
 
-File cấu hình: src/services/api.js, hằng số API_BASE_URL. Hiện tại project trỏ về Render:
+App mặc định dùng Render. Để test Backend local, tạo file `.env` tại **thư mục gốc** và đặt biến `EXPO_PUBLIC_API_BASE_URL`, thay vì sửa source:
 
-~~~javascript
-export const API_BASE_URL =
-    "https://appeduai-backend.onrender.com/api";
+~~~dotenv
+EXPO_PUBLIC_API_BASE_URL=http://192.168.1.10:5000/api
 ~~~
 
-Để chạy Backend local trên **điện thoại**, đổi thành IP mạng nội bộ thực tế của máy tính (ví dụ, không phải IP cố định):
-
-~~~javascript
-export const API_BASE_URL = "http://192.168.1.10:5000/api";
-~~~
+Đây chỉ là ví dụ. Thay bằng IPv4 của máy chạy Backend; bỏ biến để dùng Render. Khởi động lại Expo với `npx expo start -c` và không commit `.env`.
 
 - Dùng ipconfig trên Windows để lấy IPv4 đúng của Wi-Fi/Ethernet.
 - Điện thoại phải kết nối được tới máy tính qua mạng nội bộ; kiểm tra Firewall.
@@ -170,15 +168,16 @@ Base URL: http://localhost:5000/api hoặc https://appeduai-backend.onrender.com
 | POST | /auth/logout | Phản hồi đăng xuất |
 | GET | /auth/me | Thông tin tài khoản |
 | PUT | /auth/profile | Đổi tên người dùng |
-| POST | /auth/forgot-password | Yêu cầu token reset (demo) |
+| POST | /auth/forgot-password | Gửi mã đặt lại qua email hoặc demo local có kiểm soát |
 | POST | /auth/reset-password | Đặt lại mật khẩu |
 | POST | /documents | Tạo bản ghi tài liệu |
 | POST | /documents/upload | Upload tài liệu (multipart/form-data) |
 | GET | /documents | Danh sách tài liệu |
 | GET | /documents/:id | Chi tiết tài liệu |
 | PUT | /documents/:id | Cập nhật tài liệu |
-| DELETE | /documents/:id | Xóa bản ghi tài liệu |
-| POST | /summaries/documents/:documentId | Tạo tóm tắt |
+| DELETE | /documents/:id | Xóa tài liệu, file upload và dữ liệu AI liên quan |
+| POST | /summaries/documents/:documentId | Tạo tóm tắt, tùy chọn sectionId |
+| GET | /summaries/documents/:documentId/sections | Liệt kê chương/phần |
 | GET | /summaries/documents/:documentId | Lịch sử tóm tắt |
 | GET | /summaries/:summaryId | Chi tiết bản tóm tắt |
 | DELETE | /summaries/:summaryId | Xóa bản tóm tắt |
@@ -187,6 +186,7 @@ Base URL: http://localhost:5000/api hoặc https://appeduai-backend.onrender.com
 | GET | /chat/conversations/:conversationId/messages | Tin nhắn |
 | DELETE | /chat/conversations/:conversationId | Xóa hội thoại |
 | POST | /solver | Giải bài tập |
+| POST | /solver/follow-up | Hỏi tiếp theo đề và lời giải |
 | POST | /ocr | Trích xuất văn bản từ ảnh |
 
 Các endpoint Documents, Summary, Chat, Solver, OCR và /auth/me, /auth/profile yêu cầu header Authorization: Bearer <JWT>.
@@ -216,15 +216,31 @@ Upload tài liệu dùng **Body → form-data**, key **file** (type File); OCR d
 - Kiểm tra Summary, Chat, OCR, Solver và điều hướng trên Expo.
 - Kiểm tra Backend được chạy từ đúng **commit** trước mỗi đợt test.
 
-Backend **chưa có bộ automated test chính thức**: script npm test trong backend/package.json vẫn là placeholder.
+Backend có test Node (`backend/tests/*.test.js`). Chạy ở thư mục gốc:
+
+~~~bash
+npm ci
+npm ci --prefix backend
+npm test
+npm run check:ios
+~~~
+
+GitHub Actions tự chạy kiểm thử và đóng gói Expo iOS khi push nhánh hoặc tạo PR vào `main`. Bộ test tự động không thay thế kiểm thử tích hợp trên iPhone.
 
 ## Giới hạn và bảo mật (quan trọng)
 
-1. **Forgot Password chỉ dùng cho demo:** API /auth/forgot-password hiện **trả resetToken trực tiếp** cho người nhập email. Đây là lỗ hổng có thể dẫn tới chiếm quyền tài khoản nếu triển khai công khai. **Không dùng email/mật khẩu thật**, và không dùng cơ chế này cho production; trước khi dùng thực tế cần xác minh chủ sở hữu tài khoản (ví dụ gửi link reset qua email).
-2. Tệp upload được lưu trong backend/uploads/ trên filesystem. Nếu host (ví dụ Render) không có persistent storage, tệp có thể mất khi redeploy/khởi động lại. API xóa tài liệu hiện xóa bản ghi MongoDB, không đảm bảo xóa tệp vật lý.
-3. Kết quả Gemini phụ thuộc Internet, hạn mức API và mô hình; nội dung AI chỉ mang tính tham khảo.
-4. Việc phát triển trên branch refactor/project-structure **không có nghĩa đã merge vào main**.
+1. **Quên mật khẩu:** API phát mã ngẫu nhiên, chỉ lưu SHA-256 của mã và cho dùng một lần trong 15 phút. Khi deploy cần cấu hình `RESEND_API_KEY` cùng `RESET_EMAIL_FROM` để gửi mã qua email, không trả mã qua API. Nếu thiếu dịch vụ email, endpoint trả 503. Demo local chỉ bật khi `NODE_ENV=development` và `ALLOW_DEMO_RESET_TOKEN=true` (sẽ trả mã qua API); **không bật trên Render hoặc server public**.
+2. Tệp nằm tại `backend/uploads` trên filesystem, không phục vụ công khai qua `/uploads/*`. Nếu môi trường deploy không có lưu trữ bền vững, file có thể mất khi deploy lại. Cần bổ sung API tải file riêng với JWT nếu tương lai muốn tải lại PDF gốc.
+3. Xóa tài liệu sẽ xóa tóm tắt, hội thoại và file gốc; MongoDB/filesystem không có transaction chung, lỗi gián đoạn cần kiểm tra hoặc dọn bổ sung.
+4. Tắt lưu lịch sử Chat và hỏi tiếp Solver không ghi vào MongoDB, nhưng nội dung vẫn được gửi tới Gemini theo điều khoản dịch vụ.
+5. Kết quả Gemini phụ thuộc mạng, quota và model; chỉ phục vụ học tập tham khảo.
 
+## Quy trình kiểm thử tổng hợp trước khi merge `main`
+
+1. Chạy `npm test` và `npm run check:ios`, hoặc kiểm tra GitHub Actions xanh tại HEAD.
+2. Với Backend local, cấu hình MongoDB, Gemini và email reset hoặc demo local, dùng tài khoản/tài liệu thử.
+3. Thử một lần xuyên suốt trên iPhone: Auth/Reset → Documents → Summary → Chat → Scanner/OCR → Solver → Profile/Logout, bao gồm hai tài khoản để xác nhận dữ liệu tách biệt.
+4. Chỉ merge `feature/fr-completion` vào `main` sau khi đợt test cuối PASS; Render trỏ `main` có thể tự deploy, nên cần thiết lập biến môi trường trước khi coi bản deploy đủ tính năng.
 ## Tham khảo
 
 - [Expo](https://docs.expo.dev/)

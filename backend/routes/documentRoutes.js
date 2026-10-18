@@ -28,7 +28,7 @@ router.post(
 
 router.post(
     "/upload",
-    upload.any(),
+    upload.single("file"),
     uploadDocument
 );
 

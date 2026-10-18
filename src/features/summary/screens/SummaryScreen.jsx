@@ -11,6 +11,7 @@ import colors from "../../../styles/colors";
 import SummaryHeader from "../components/SummaryHeader";
 import SummaryDocumentCard from "../components/SummaryDocumentCard";
 import SummaryOptions from "../components/SummaryOptions";
+import SummarySections from "../components/SummarySections";
 import SummaryResultCard from "../components/SummaryResultCard";
 import {
     SummaryErrorCard,
@@ -77,6 +78,15 @@ export default function SummaryScreen({
                     }
                 />
 
+                <SummarySections
+                    sections={summary.sections}
+                    loading={summary.sectionsLoading}
+                    error={summary.sectionsError}
+                    selectedSectionId={summary.selectedSectionId}
+                    onSelect={summary.changeSection}
+                    disabled={summary.isLoading}
+                />
+
                 <SummaryOptions
                     selectedType={
                         summary.summaryLength
@@ -117,6 +127,8 @@ export default function SummaryScreen({
                         typeLabel={
                             summary.typeLabel
                         }
+                        sectionTitle={summary.summaryRecord?.sectionTitle || ""}
+
                         saved={Boolean(
                             summary.summaryRecord
                                 ?._id

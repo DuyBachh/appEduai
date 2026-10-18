@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Keyboard } from "react-native";
 
 import ImageService from "../services/ImageService";
 import SolverService from "../services/SolverService";
 
-export default function useSolver() {
-    const [question, setQuestion] = useState("");
+export default function useSolver(initialQuestion = "") {
+    const [question, setQuestion] = useState(
+        typeof initialQuestion === "string" ? initialQuestion.trim().slice(0, 6000) : ""
+    );
     const [selectedImage, setSelectedImage] =
         useState(null);
 
@@ -18,15 +20,47 @@ export default function useSolver() {
     const [result, setResult] = useState(null);
     const [hintIndex, setHintIndex] = useState(0);
 
+    // FR-43: reveal complete solution only after an explicit tap.
+    const [showFullSolution, setShowFullSolution] = useState(false);
+
+    // FR-45: follow-up exchanges are kept only in this screen's memory.
+    const [followUpText, setFollowUpText] = useState("");
+    const [followUpMessages, setFollowUpMessages] = useState([]);
+    const [followUpLoading, setFollowUpLoading] = useState(false);
+    const [followUpError, setFollowUpError] = useState("");
+
     const loading =
-        solverLoading || ocrLoading;
+        solverLoading || ocrLoading || followUpLoading;
+
+    useEffect(() => {
+        if (typeof initialQuestion !== "string" || !initialQuestion.trim()) {
+            return;
+        }
+
+        setQuestion(initialQuestion.trim().slice(0, 6000));
+        setSelectedImage(null);
+        setResult(null);
+        setHintIndex(0);
+        setShowFullSolution(false);
+        setFollowUpText("");
+        setFollowUpMessages([]);
+        setFollowUpError("");
+        setError("");
+    }, [initialQuestion]);
 
     const clearResult = () => {
         setResult(null);
         setHintIndex(0);
+        setShowFullSolution(false);
+        setFollowUpText("");
+        setFollowUpMessages([]);
+        setFollowUpError("");
     };
 
     const updateQuestion = (value) => {
+        if (value !== question && result) {
+            clearResult();
+        }
         setQuestion(value);
 
         if (error) {
@@ -147,6 +181,56 @@ export default function useSolver() {
         }
     };
 
+    const toggleFullSolution = () => {
+        if (result) {
+            setShowFullSolution((current) => !current);
+        }
+    };
+
+    const changeFollowUpText = (value) => {
+        setFollowUpText(value);
+        if (followUpError) {
+            setFollowUpError("");
+        }
+    };
+
+    const askFollowUp = async () => {
+        const nextQuestion = followUpText.trim();
+        if (!result || !nextQuestion || loading) {
+            return;
+        }
+
+        Keyboard.dismiss();
+        setFollowUpLoading(true);
+        setFollowUpError("");
+
+        try {
+            const answer = await SolverService.askFollowUp({
+                originalQuestion: result.question || question,
+                result,
+                question: nextQuestion,
+                history: followUpMessages.slice(-6).map(({ role, content }) => ({
+                    role,
+                    content: String(content).slice(0, 1200),
+                })),
+            });
+
+            setFollowUpMessages((current) => [
+                ...current,
+                { role: "user", content: nextQuestion },
+                { role: "assistant", content: answer },
+            ]);
+            setFollowUpText("");
+        } catch (requestError) {
+            setFollowUpError(
+                requestError.message ||
+                "Không thể giải thích thêm. Vui lòng thử lại."
+            );
+        } finally {
+            setFollowUpLoading(false);
+        }
+    };
+
     const previousHint = () => {
         setHintIndex((current) =>
             Math.max(0, current - 1)
@@ -167,6 +251,9 @@ export default function useSolver() {
     };
 
     const reset = () => {
+        if (loading) {
+            return;
+        }
         Keyboard.dismiss();
 
         setQuestion("");
@@ -184,6 +271,14 @@ export default function useSolver() {
         error,
         result,
         hintIndex,
+        showFullSolution,
+        toggleFullSolution,
+        followUpText,
+        changeFollowUpText,
+        followUpMessages,
+        followUpLoading,
+        followUpError,
+        askFollowUp,
         updateQuestion,
         pickImage,
         takePhoto,

@@ -65,6 +65,12 @@ router.post(
     solverController.solve
 );
 
+// FR-45: Ask an explanatory follow-up about the solved question.
+router.post(
+    "/follow-up",
+    solverController.followUp
+);
+
 // ========================================
 // EXPORT
 // ========================================

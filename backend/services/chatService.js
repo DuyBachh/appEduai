@@ -23,15 +23,17 @@ const {
 } = require("../prompts/chatPrompts");
 
 const { normalizeText, selectDocumentContext } = require("../utils/chatContext");
+const { cleanChatAnswer } = require("../utils/cleanChatAnswer");
 const { validateObjectId } = require("../utils/chatValidation");
 const { createServiceError } = require("../utils/serviceError");
 const { getConversations, getConversationMessages, deleteConversation } = require("./chatHistoryService");
 
-const MAX_HISTORY_MESSAGES =
-    12;
+const {
+    MAX_HISTORY_MESSAGES,
+    validateEphemeralHistory,
+} = require("../utils/ephemeralChat");
 
-const CHAT_MAX_OUTPUT_TOKENS =
-    700;
+const CHAT_MAX_OUTPUT_TOKENS = 700;
 
 // ========================================
 // CHAT WITH DOCUMENT
@@ -44,6 +46,8 @@ const chatWithDocument =
         conversationId =
             null,
         question,
+        saveHistory = true,
+        ephemeralHistory = [],
     }) => {
         validateObjectId(
             userId,
@@ -54,6 +58,21 @@ const chatWithDocument =
             documentId,
             "Document ID không hợp lệ."
         );
+
+        if (typeof saveHistory !== "boolean") {
+            throw createServiceError("Chế độ lưu lịch sử không hợp lệ.", 400);
+        }
+
+        if (!saveHistory && conversationId) {
+            throw createServiceError(
+                "Chế độ không lưu không thể sử dụng hội thoại đã lưu.",
+                400
+            );
+        }
+
+        const temporaryHistory = !saveHistory
+            ? validateEphemeralHistory(ephemeralHistory)
+            : [];
 
         const normalizedQuestion =
             String(
@@ -155,6 +174,10 @@ const chatWithDocument =
             false;
 
         if (
+            !saveHistory
+        ) {
+            // Stateless conversation: no MongoDB conversation is created.
+        } else if (
             conversationId
         ) {
             validateObjectId(
@@ -218,11 +241,10 @@ const chatWithDocument =
         // HISTORY
         // ========================================
 
-        let history =
-            [];
+        let history = temporaryHistory;
 
         if (
-            !isNewConversation
+            saveHistory && !isNewConversation
         ) {
             history =
                 await messagesCollection
@@ -310,6 +332,10 @@ const chatWithDocument =
                         "Viết tiếng Việt có dấu.",
 
                         "Trả lời trực tiếp và dễ hiểu.",
+
+                        "Chỉ xuất văn bản thuần, không dùng Markdown hoặc dấu * để định dạng.",
+
+                        "Có thể sử dụng dấu • để liệt kê và xuống dòng cho dễ đọc.",
                     ].join(
                         " "
                     ),
@@ -332,7 +358,7 @@ const chatWithDocument =
         );
 
         const normalizedAnswer =
-            normalizeText(
+            cleanChatAnswer(
                 answer
             );
 
@@ -343,6 +369,32 @@ const chatWithDocument =
                 "AI không trả về câu trả lời hợp lệ.",
                 502
             );
+        }
+
+        // ========================================
+        // FR-30: Temporary chat is never persisted in MongoDB.
+        // Returned messages remain in the client's memory for follow-up.
+        // ========================================
+
+        if (!saveHistory) {
+            const createdAt = new Date();
+            return {
+                conversationId: null,
+                isNewConversation: false,
+                saved: false,
+                userMessage: {
+                    _id: new ObjectId(),
+                    role: "user",
+                    content: normalizedQuestion,
+                    createdAt,
+                },
+                assistantMessage: {
+                    _id: new ObjectId(),
+                    role: "assistant",
+                    content: normalizedAnswer,
+                    createdAt,
+                },
+            };
         }
 
         // ========================================
@@ -432,6 +484,7 @@ const chatWithDocument =
             conversationId:
                 conversation._id,
 
+            saved: true,
             isNewConversation,
 
             userMessage,

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
-    FlatList,
+    SectionList,
+    ScrollView,
     RefreshControl,
     StyleSheet,
     Text,
@@ -15,7 +16,11 @@ import DocumentCard from "../components/DocumentCard";
 import RenameDocumentModal from "../components/RenameDocumentModal";
 import ClassifyDocumentModal from "../components/ClassifyDocumentModal";
 import useDocuments from "../hooks/useDocuments";
-import { getDocumentId } from "../utils/documentUtils";
+import {
+    getDocumentId,
+    getDocumentSubjects,
+    groupDocumentsByClassification,
+} from "../utils/documentUtils";
 
 export default function DocumentsScreen({
     navigation,
@@ -54,6 +59,56 @@ export default function DocumentsScreen({
         saveClassify,
         confirmDelete,
     } = documentsState;
+
+    // FR-12: group and filter by user-assigned subject/topic.
+    const [selectedSubject, setSelectedSubject] = useState(null);
+
+    const subjects = useMemo(
+        () => getDocumentSubjects(documents),
+        [documents]
+    );
+
+    const hasUnclassified = useMemo(
+        () => documents.some((doc) => !String(doc?.subject || "").trim()),
+        [documents]
+    );
+
+    useEffect(() => {
+        if (selectedSubject === null) {
+            return;
+        }
+
+        if (
+            (selectedSubject === "" && !hasUnclassified) ||
+            (selectedSubject !== "" &&
+                !subjects.some(
+                    (subject) =>
+                        subject.toLocaleLowerCase("vi") ===
+                        selectedSubject.toLocaleLowerCase("vi")
+                ))
+        ) {
+            setSelectedSubject(null);
+        }
+    }, [selectedSubject, subjects, hasUnclassified]);
+
+    const filteredDocuments = useMemo(
+        () =>
+            selectedSubject === null
+                ? documents
+                : documents.filter(
+                      (document) =>
+                          String(document?.subject || "")
+                              .trim()
+                              .toLocaleLowerCase("vi") ===
+                          selectedSubject.toLocaleLowerCase("vi")
+                  ),
+        [documents, selectedSubject]
+    );
+
+    const sections = useMemo(
+        () => groupDocumentsByClassification(filteredDocuments),
+        [filteredDocuments]
+    );
 
     const renderDocument = ({
         item,
@@ -123,6 +178,44 @@ export default function DocumentsScreen({
                 </View>
             ) : null}
 
+            {documents.length > 0 ? (
+                <View style={styles.filterBar}>
+                    <Text style={styles.filterLabel}>
+                        Lọc theo môn học
+                    </Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.filterChips}
+                    >
+                        <SubjectChip
+                            label="Tất cả"
+                            selected={selectedSubject === null}
+                            onPress={() => setSelectedSubject(null)}
+                        />
+                        {subjects.map((subject) => (
+                            <SubjectChip
+                                key={subject}
+                                label={subject}
+                                selected={
+                                    selectedSubject !== null &&
+                                    selectedSubject.toLocaleLowerCase("vi") ===
+                                        subject.toLocaleLowerCase("vi")
+                                }
+                                onPress={() => setSelectedSubject(subject)}
+                            />
+                        ))}
+                        {hasUnclassified ? (
+                            <SubjectChip
+                                label="Chưa phân loại"
+                                selected={selectedSubject === ""}
+                                onPress={() => setSelectedSubject("")}
+                            />
+                        ) : null}
+                    </ScrollView>
+                </View>
+            ) : null}
+
             {isLoading ? (
                 <View style={styles.loadingBox}>
                     <ActivityIndicator
@@ -135,8 +228,19 @@ export default function DocumentsScreen({
                     </Text>
                 </View>
             ) : (
-                <FlatList
-                    data={documents}
+                <SectionList
+                    sections={sections}
+                    stickySectionHeadersEnabled={false}
+                    renderSectionHeader={({ section }) => (
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionSubject}>
+                                📁 {section.subject}
+                            </Text>
+                            <Text style={styles.sectionTopic}>
+                                Chủ đề: {section.topic} · {section.data.length} tài liệu
+                            </Text>
+                        </View>
+                    )}
                     keyExtractor={(item, index) =>
                         String(
                             getDocumentId(item) ??
@@ -159,10 +263,18 @@ export default function DocumentsScreen({
                         />
                     }
                     ListEmptyComponent={
-                        <EmptyState
-                            loading={uploadLoading}
-                            onUpload={upload}
-                        />
+                        documents.length === 0 ? (
+                            <EmptyState
+                                loading={uploadLoading}
+                                onUpload={upload}
+                            />
+                        ) : (
+                            <View style={styles.emptyContainer}>
+                                <Text style={styles.emptyText}>
+                                    Không có tài liệu thuộc môn học này.
+                                </Text>
+                            </View>
+                        )
                     }
                 />
             )}
@@ -191,6 +303,29 @@ export default function DocumentsScreen({
                 onSave={rename}
             />
         </View>
+    );
+}
+
+function SubjectChip({ label, selected, onPress }) {
+    return (
+        <TouchableOpacity
+            style={[
+                styles.subjectChip,
+                selected && styles.subjectChipSelected,
+            ]}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+        >
+            <Text
+                style={[
+                    styles.subjectChipText,
+                    selected && styles.subjectChipTextSelected,
+                ]}
+            >
+                {label}
+            </Text>
+        </TouchableOpacity>
     );
 }
 
@@ -284,6 +419,53 @@ const styles = StyleSheet.create({
     },
     listContent: {
         paddingBottom: 30,
+    },
+    filterBar: {
+        marginBottom: 12,
+    },
+    filterLabel: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 8,
+    },
+    filterChips: {
+        gap: 8,
+        paddingBottom: 4,
+    },
+    subjectChip: {
+        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        backgroundColor: colors.white,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    subjectChipSelected: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    subjectChipText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.text,
+    },
+    subjectChipTextSelected: {
+        color: colors.white,
+    },
+    sectionHeader: {
+        paddingVertical: 10,
+        paddingHorizontal: 2,
+    },
+    sectionSubject: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: colors.text,
+    },
+    sectionTopic: {
+        fontSize: 12,
+        color: colors.gray,
+        marginTop: 3,
     },
     errorBox: {
         flexDirection: "row",

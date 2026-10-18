@@ -60,6 +60,12 @@ export default function SummaryHistoryCard({
                     </View>
                 </View>
 
+                {item.sectionTitle ? (
+                    <Text style={styles.sectionTitle} numberOfLines={2}>
+                        Phạm vi: {item.sectionTitle}
+                    </Text>
+                ) : null}
+
                 <Text
                     style={styles.preview}
                     numberOfLines={4}
@@ -142,6 +148,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: "600",
         color: colors.gray,
+    },
+    sectionTitle: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.primary,
+        marginTop: 10,
     },
     preview: {
         fontSize: 14,

@@ -4,10 +4,14 @@ import React, {
 } from "react";
 
 import {
+    Alert,
     FlatList,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
+    Switch,
+    Text,
+    View,
 } from "react-native";
 
 import colors from "../../../styles/colors";
@@ -78,6 +82,33 @@ export default function ChatScreen({
         chat.sending,
     ]);
 
+    const handleSaveHistoryChange = (value) => {
+        if (chat.sending || chat.loadingMessages) {
+            return;
+        }
+
+        const applyChange = () => {
+            if (chat.changeSaveHistory(value)) {
+                navigation.setParams({ conversationId: undefined });
+            }
+        };
+
+        // Switching modes starts a fresh conversation. Past saved chats
+        // remain in History and are not deleted.
+        if (chat.messages.length > 0 || chat.activeConversationId) {
+            Alert.alert(
+                "Đổi chế độ lưu lịch sử",
+                "Chuyển chế độ sẽ bắt đầu hội thoại mới. Các hội thoại đã lưu trước đó vẫn ở Lịch sử.",
+                [
+                    { text: "Hủy", style: "cancel" },
+                    { text: "Tiếp tục", onPress: applyChange },
+                ]
+            );
+        } else {
+            applyChange();
+        }
+    };
+
     const handleNewChat = () => {
         const changed =
             chat.startNewChat();
@@ -119,6 +150,26 @@ export default function ChatScreen({
                     chat.sending
                 }
             />
+
+            <View style={styles.historyPreference}>
+                <View style={styles.historyDescription}>
+                    <Text style={styles.preferenceTitle}>
+                        Lưu lịch sử hội thoại
+                    </Text>
+                    <Text style={styles.preferenceHint}>
+                        {chat.saveHistory
+                            ? "Tin nhắn được lưu để xem lại."
+                            : "Không lưu vào lịch sử. Tin nhắn sẽ mất khi rời phiên."}
+                    </Text>
+                </View>
+                <Switch
+                    value={chat.saveHistory}
+                    onValueChange={handleSaveHistoryChange}
+                    disabled={chat.sending || chat.loadingMessages}
+                    trackColor={{ true: colors.primary, false: colors.border }}
+                    accessibilityLabel="Lưu lịch sử hội thoại"
+                />
+            </View>
 
             {chat.loadingMessages ? (
                 <ChatLoadingState />
@@ -189,6 +240,30 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor:
             colors.background,
+    },
+    historyPreference: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    historyDescription: {
+        flex: 1,
+        paddingRight: 12,
+    },
+    preferenceTitle: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: colors.text,
+    },
+    preferenceHint: {
+        fontSize: 12,
+        marginTop: 4,
+        lineHeight: 17,
+        color: colors.gray,
     },
     messageList: {
         paddingHorizontal: 16,
