@@ -33,7 +33,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-16 | Gửi nội dung phù hợp tới AI API | Có code | Tạo Summary qua backend | Not Run |
 | FR-17 | Tóm tắt dựa trên tài liệu | Cần kiểm thử | Đối chiếu 3 ý với PDF gốc | Not Run |
 | FR-18 | Ngắn/trung bình/chi tiết | Có code | Tạo đủ 3 mức | Not Run |
-| FR-19 | Tóm tắt theo chương/phần | Đã code trên feature – chưa test | Chọn đúng chương/phần rồi tóm tắt, kiểm tra phân quyền và lịch sử | Not Run |
+| FR-19 | Tóm tắt theo chương/phần | Đã code trên feature | Người dùng xác nhận đã tóm tắt được 3 chương; cần xác nhận không lẫn nội dung giữa các chương và lịch sử hiển thị đúng | **Partial PASS** – tóm tắt 3 chương, chờ kiểm tra phạm vi/lịch sử |
 | FR-20 | Kết quả tóm tắt dễ đọc | Cần kiểm thử | Kiểm tra cấu trúc tóm tắt trên iPhone | Not Run |
 | FR-21 | Lưu bản tóm tắt | Có tự lưu – cần xác nhận | Tạo tóm tắt, thoát và mở lại; đề không buộc nút Lưu riêng | Not Run |
 | FR-22 | Xem lại bản tóm tắt | Có code | Mở lịch sử và chi tiết | Not Run |
@@ -88,3 +88,8 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 - **FR-12:** User xác nhận TC-FR12-01 **PASS 8/8 bước** trên iPhone. Kiểm thử mở rộng các trường hợp lỗi biên chưa thực hiện.
 - **FR-19:** Đã triển khai trong branch `feature/fr-completion`. Có endpoint `GET /api/summaries/documents/:documentId/sections`, POST summary nhận tùy chọn `sectionId`; Backend luôn lấy văn bản từ MongoDB của chủ sở hữu, không chấp nhận nguồn văn bản từ client. Hỗ trợ heading `Chương`/`Phần` hoặc chia thành các `Phần N` khi file không có heading được trích xuất. Có lưu tên chương/phần trong lịch sử.
 - **Lưu ý:** Không nên nói mọi PDF đều được nhận dạng chương chính xác vì chất lượng văn bản sau trích xuất khác nhau. Kết quả FR-19 hiện vẫn **Not Run**.
+
+## Tiến độ kiểm thử FR-19 – 18/10/2026
+
+- Người dùng xác nhận trên iPhone đã tóm tắt được **3 chương** từ PDF mẫu.
+- Chưa có xác nhận riêng về việc nội dung từng bản chỉ lấy từ chương đã chọn và hiển thị đúng tên chương trong lịch sử, nên chưa kết luận FR-19 PASS đầy đủ.
