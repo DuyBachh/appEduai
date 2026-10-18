@@ -119,42 +119,6 @@ const updateDocument = async ({
     });
 };
 
-const deleteDocument = async ({
-    userId,
-    documentId,
-}) => {
-    validateObjectId(
-        userId,
-        "User ID không hợp lệ."
-    );
-
-    validateObjectId(
-        documentId,
-        "Document ID không hợp lệ."
-    );
-
-    const documentsCollection =
-        getDocumentsCollection();
-
-    const result =
-        await documentsCollection.deleteOne({
-            _id: new ObjectId(documentId),
-            userId: new ObjectId(userId),
-        });
-
-    if (result.deletedCount === 0) {
-        const error = new Error(
-            "Không tìm thấy tài liệu hoặc bạn không có quyền xóa."
-        );
-
-        error.statusCode = 404;
-
-        throw error;
-    }
-
-    return {
-        id: documentId,
-    };
-};
+const { deleteDocument } = require("./documentDeletionService");
 
 module.exports = { getDocuments, getDocumentById, updateDocument, deleteDocument };
