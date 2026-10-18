@@ -98,6 +98,14 @@ export default function SolverScreen({ route }) {
                     hintIndex={solver.hintIndex}
                     onPreviousHint={solver.previousHint}
                     onNextHint={solver.nextHint}
+                    showFullSolution={solver.showFullSolution}
+                    onToggleFullSolution={solver.toggleFullSolution}
+                    followUpText={solver.followUpText}
+                    followUpMessages={solver.followUpMessages}
+                    followUpLoading={solver.followUpLoading}
+                    followUpError={solver.followUpError}
+                    onFollowUpChange={solver.setFollowUpText}
+                    onSendFollowUp={solver.askFollowUp}
                     onReset={solver.reset}
                 />
             </ScrollView>
