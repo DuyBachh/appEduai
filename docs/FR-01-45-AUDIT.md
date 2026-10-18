@@ -25,7 +25,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-08 | Danh sách tài liệu | Có code | Kiểm tra danh sách vừa upload | Not Run |
 | FR-09 | Tên, ngày tải, kích thước | Có code | Mở thẻ/chi tiết tài liệu | Not Run |
 | FR-10 | Đổi tên tài liệu | Có code | Đổi tên và tải lại danh sách | Not Run |
-| FR-11 | Xóa tài liệu | Chưa đầy đủ | Xóa bản ghi; kiểm tra file vật lý có được xóa không | Not Run |
+| FR-11 | Xóa tài liệu | Đã bổ sung xóa file upload + summaries/conversations/messages trên feature | Xóa file mới upload trên Backend local, xác nhận bản ghi và dữ liệu liên quan mất; người khác không bị ảnh hưởng | **Not Run** |
 | FR-12 | Tổ chức theo môn học/chủ đề | Đã sửa trên feature và test iPhone | Gán môn/chủ đề, nhóm, lọc, chưa phân loại, mở lại | **PASS 8/8** (người dùng xác nhận) |
 | FR-13 | Lưu nội dung tài liệu cho AI | Có code | Trích xuất văn bản rồi chạy Summary/Chat | Not Run |
 | FR-14 | Yêu cầu AI tóm tắt tài liệu | Có code | Chọn file và tạo tóm tắt | Not Run |
@@ -57,9 +57,9 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-40 | Gợi ý từng bước | Có code | Xem danh sách hints | Not Run |
 | FR-41 | Yêu cầu gợi ý tiếp theo | Có code | Nhấn nút gợi ý tiếp theo | Not Run |
 | FR-42 | Giải thích khái niệm | Có code | Kiểm tra phần explanation | Not Run |
-| FR-43 | Xem lời giải khi sinh viên yêu cầu | Đã code và kiểm thử trên iPhone | Các bước và đáp án chỉ hiện khi chọn xem, có thể ẩn và bắt đầu bài mới | **PASS 8/8** (người dùng xác nhận) |
+| FR-43 | Xem lời giải khi sinh viên yêu cầu | Đã code và kiểm thử trên iPhone | Các bước và đáp án chỉ hiện khi chọn xem, có thể ẩn và bắt đầu bài mới | **PASS** (thuộc bộ 8/8 chung, người dùng xác nhận) |
 | FR-44 | Phân biệt hint/giải thích/lời giải | Có code | So sánh 3 phần trên Solver | Not Run |
-| FR-45 | Hỏi tiếp về lời giải | Đã code và kiểm thử trên iPhone | Gửi câu hỏi dựa trên lời giải, hỏi tiếp theo ngữ cảnh; API follow-up chạy sau khi cập nhật Backend | **PASS 8/8** (người dùng xác nhận) |
+| FR-45 | Hỏi tiếp về lời giải | Đã code và kiểm thử trên iPhone | Gửi câu hỏi dựa trên lời giải, hỏi tiếp theo ngữ cảnh; API follow-up chạy sau khi cập nhật Backend | **PASS** (thuộc bộ 8/8 chung, người dùng xác nhận) |
 
 ## Danh sách công việc ưu tiên
 
@@ -69,7 +69,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 4. **FR-37** – **PASS 7/7:** người dùng xác nhận toàn bộ luồng OCR → Solver trên iPhone.
 5. **FR-45** – **PASS:** người dùng xác nhận hỏi tiếp về lời giải hoạt động sau khi khắc phục lỗi 404 Backend local.
 6. **FR-43** – **PASS:** người dùng xác nhận chế độ xem/ẩn lời giải theo yêu cầu hoạt động trên iPhone.
-7. **FR-11** – Xử lý file gốc khi xóa tài liệu; xem xét dữ liệu tệp của bản tóm tắt và lịch sử liên quan.
+7. **FR-11** – Đã bổ sung xóa an toàn file upload và dọn summaries, conversations, messages của chính tài liệu; cần test trên iPhone cùng Backend local trước khi ghi PASS.
 8. **FR-05, FR-17, FR-20, FR-21, FR-25** – Chạy các trường hợp xác nhận chất lượng và hành vi thực tế.
 
 ## Rủi ro demo ngoài FR
@@ -188,3 +188,28 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 - Thay đổi giao diện đã xóa các câu ví dụ ở ô Solver và phần Hỏi thêm về bài giải.
 
 - Bổ sung xác nhận: người dùng báo **FR-43 và FR-45 PASS 8/8 bước** trên iPhone (tổng bộ kịch bản hai FR); không hiểu là 8/8 cho từng FR riêng lẻ.
+
+## FR-11 – Triển khai 18/10/2026, chờ kiểm thử
+
+**Đã sửa trên `feature/fr-completion`:**
+- API `DELETE /api/documents/:id` xác minh tài liệu thuộc tài khoản đăng nhập trước khi xóa.
+- Xóa các `messages` từ cuộc trò chuyện thuộc tài liệu, xóa các `conversations`, các `summaries`, sau đó xóa bản ghi `documents`.
+- Chỉ được xóa file trong `backend/uploads` khi `uri` khớp tên do hệ thống upload sinh ra (`/uploads/<timestamp>-<random>.(pdf|docx|txt)`). Không xóa URL ngoài hoặc đường dẫn do người dùng tùy ý nhập.
+- Nếu file đang được bản ghi tài liệu khác tham chiếu, không xóa file chung.
+- Nếu file không còn trên disk, ghi `fileStatus: already-missing`; nếu xóa file lỗi do permission/disk, giữ kết quả xóa database và trả `fileStatus: failed`, kèm cảnh báo để tránh báo sai là file đã được dọn xong.
+- Frontend cảnh báo rõ xóa tài liệu sẽ xóa cả bản tóm tắt, lịch sử Chat và không thể hoàn tác.
+- Bộ kiểm tra logic độc lập: **7/7 PASS** bằng JavaScript với fake collections/file operations. Chưa kiểm thử end-to-end trên MongoDB/ổ đĩa của người dùng.
+
+**Lưu ý kỹ thuật:** Xóa trên MongoDB và filesystem không phải một giao dịch ACID thống nhất; nếu gặp lỗi DB giữa chừng có thể cần retry. Dữ liệu file trên Render có thể không tồn tại tại Backend local khác: phải upload *file thử mới* vào đúng server đang kiểm thử để xác nhận xóa file thật.
+
+| TC | Thao tác kiểm thử thực tế | Expected |
+|---|---|---|
+| TC-FR11-01 | Upload PDF thử nghiệm mới vào Backend local; tạo tóm tắt, trò chuyện | Có tài liệu, bản tóm tắt, lịch sử hội thoại |
+| TC-FR11-02 | Nhấn Xóa → Hủy | Tài liệu vẫn còn |
+| TC-FR11-03 | Nhấn Xóa → Xác nhận | Tài liệu biến mất khỏi danh sách |
+| TC-FR11-04 | Làm mới danh sách, đăng xuất và đăng nhập lại | Không thấy tài liệu đã xóa |
+| TC-FR11-05 | Kiểm tra `backend/uploads` bằng tên file ứng với `uri` trước và sau | File thử không còn trên ổ đĩa |
+| TC-FR11-06 | Kiểm tra MongoDB / API có quyền đối với `summaries`, `conversations`, `messages` của tài liệu bị xóa | Không còn dữ liệu liên quan của tài liệu |
+| TC-FR11-07 | Có thêm tài liệu khác hoặc tài khoản khác | Tài liệu và lịch sử không liên quan vẫn còn |
+
+**FR-11 chưa PASS:** chờ người dùng xác nhận kiểm thử trên iPhone và server local.
