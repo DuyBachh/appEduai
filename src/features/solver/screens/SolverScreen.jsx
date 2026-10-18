@@ -17,9 +17,10 @@ import SolverResult from "../components/SolverResult";
 import LoadingCard from "../components/LoadingCard";
 import useSolver from "../hooks/useSolver";
 
-export default function SolverScreen() {
+export default function SolverScreen({ route }) {
     const scrollRef = useRef(null);
-    const solver = useSolver();
+    const initialQuestion = route?.params?.initialQuestion || "";
+    const solver = useSolver(initialQuestion);
 
     useEffect(() => {
         if (!solver.result) {
@@ -66,6 +67,12 @@ export default function SolverScreen() {
                 <Text style={styles.subtitle}>
                     Nhập bài tập hoặc chụp ảnh để AI phân tích và giải từng bước.
                 </Text>
+
+                {initialQuestion ? (
+                    <Text style={styles.importNotice}>
+                        Đề bài được chuyển từ Scanner. Hãy kiểm tra nội dung trước khi giải.
+                    </Text>
+                ) : null}
 
                 <SolverForm
                     question={solver.question}
@@ -119,5 +126,11 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         color: colors.gray,
         marginBottom: 20,
+    },
+    importNotice: {
+        color: colors.primary,
+        fontSize: 13,
+        lineHeight: 20,
+        marginBottom: 14,
     },
 });
