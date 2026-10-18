@@ -59,6 +59,11 @@ QUY TẮC:
 "Tài liệu không chứa đủ thông tin để trả lời câu hỏi này."
 - Trả lời bằng tiếng Việt có dấu.
 - Trả lời trực tiếp, rõ ràng, dễ hiểu cho sinh viên.
+- Chỉ trả lời bằng văn bản thuần (plain text), không dùng định dạng Markdown.
+- Không dùng dấu * hoặc ** để nhấn mạnh, không dùng # làm tiêu đề và không dùng dấu backtick.
+- Nếu cần liệt kê, dùng dấu • ở đầu dòng hoặc đánh số 1., 2., 3.
+- Chia đoạn ngắn, xuống dòng hợp lý để dễ đọc trên màn hình điện thoại.
+- Giữ nguyên ký hiệu toán học khi cần, ví dụ dấu * biểu thị phép nhân.
 - Có thể dùng dấu • để liệt kê.
 - Không cần chào hỏi.
 - Không giới thiệu bản thân.
