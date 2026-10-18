@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Keyboard } from "react-native";
 
 import ImageService from "../services/ImageService";
 import SolverService from "../services/SolverService";
 
-export default function useSolver() {
-    const [question, setQuestion] = useState("");
+export default function useSolver(initialQuestion = "") {
+    const [question, setQuestion] = useState(
+        typeof initialQuestion === "string" ? initialQuestion.trim().slice(0, 6000) : ""
+    );
     const [selectedImage, setSelectedImage] =
         useState(null);
 
@@ -20,6 +22,18 @@ export default function useSolver() {
 
     const loading =
         solverLoading || ocrLoading;
+
+    useEffect(() => {
+        if (typeof initialQuestion !== "string" || !initialQuestion.trim()) {
+            return;
+        }
+
+        setQuestion(initialQuestion.trim().slice(0, 6000));
+        setSelectedImage(null);
+        setResult(null);
+        setHintIndex(0);
+        setError("");
+    }, [initialQuestion]);
 
     const clearResult = () => {
         setResult(null);
