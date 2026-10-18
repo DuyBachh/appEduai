@@ -11,6 +11,7 @@ import colors from "../../../styles/colors";
 export default function SummaryResultCard({
     summary,
     typeLabel,
+    sectionTitle,
     saved,
     onOpenHistory,
 }) {
@@ -31,6 +32,12 @@ export default function SummaryResultCard({
                     </Text>
                 </View>
             </View>
+
+            {sectionTitle ? (
+                <Text style={styles.sectionTitle}>
+                    Phạm vi: {sectionTitle}
+                </Text>
+            ) : null}
 
             <Text
                 selectable
@@ -86,6 +93,12 @@ const styles=StyleSheet.create({
         fontSize:12,
         fontWeight:"700",
         color:colors.primary,
+    },
+    sectionTitle: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.primary,
+        marginBottom: 12,
     },
     content:{
         fontSize:15,
