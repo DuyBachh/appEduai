@@ -44,7 +44,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-27 | Duy trì ngữ cảnh hội thoại | Có code | Hỏi theo chuỗi có đại từ quy chiếu | Not Run |
 | FR-28 | Câu hỏi tiếp theo theo đáp án trước | Có code | Hỏi tiếp cùng hội thoại | Not Run |
 | FR-29 | Bắt đầu hội thoại mới | Có code | Dùng nút New Chat | Not Run |
-| FR-30 | Lưu lịch sử nếu người dùng chọn | Chưa đầy đủ | Hiện tự lưu; cần tùy chọn lưu/không lưu | Not Run |
+| FR-30 | Cho chọn lưu/không lưu lịch sử | Đã code Frontend + Backend ở branch – chờ test | Bật: tạo hội thoại/lưu và mở lại; Tắt: không ghi MongoDB nhưng vẫn hỏi tiếp trong phiên; đổi chế độ khởi tạo chat mới | **Not Run** |
 | FR-31 | Chụp ảnh đề bài | Có code | Dùng camera trên iPhone | Not Run |
 | FR-32 | Chọn ảnh từ thiết bị | Có code | Chọn ảnh từ Photos | Not Run |
 | FR-33 | OCR/multimodal AI | Có code | Chạy nhận dạng văn bản từ ảnh | Not Run |
@@ -65,7 +65,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 
 1. **FR-12** – Bộ lọc môn học + tự nhóm theo môn học/chủ đề đã **PASS 8/8** theo kết quả kiểm thử người dùng trên iPhone; khuyến nghị thêm edge tests đổi/xóa nhóm và chuẩn hóa môn học.
 2. **FR-19** – **PASS:** người dùng xác nhận nhận diện, tóm tắt đúng phạm vi ba chương, tên chương và lịch sử đều chính xác trên iPhone.
-3. **FR-30** – Cho lựa chọn lưu/không lưu lịch sử; Backend phải thực sự không lưu khi tắt.
+3. **FR-30** – Đã thêm công tắc lưu lịch sử ở Chat và nhánh Backend không ghi MongoDB khi tắt; cần kiểm thử toàn bộ quy trình trên iPhone trước khi ghi PASS.
 4. **FR-37** – Kiểm tra Solver OCR→giải; nếu thầy yêu cầu luồng từ Scanner, thêm lệnh chuyển nội dung đã sửa sang Solver.
 5. **FR-45** – Hội thoại hỏi tiếp dựa trên bài toán và lời giải Solver.
 6. **FR-43** – Nếu cần demo thao tác yêu cầu riêng, chỉ hiển thị lời giải hoàn chỉnh khi nhấn nút; câu chữ đề là “có thể”.
@@ -97,3 +97,19 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 ## Xác nhận FR-19 – 18/10/2026 (cập nhật)
 
 Người dùng xác nhận các kiểm tra cuối FR-19 đều PASS: tóm tắt riêng từng chương không lẫn nội dung và ghi đúng chương trong lịch sử. Đây là kết quả kiểm thử thủ công từ người dùng.
+
+## FR-30 – Kiểm thử iPhone (chưa chạy)
+
+| Test case | Thao tác | Expected |
+|---|---|---|
+| TC-FR30-01 | Bật lưu lịch sử (mặc định), gửi câu hỏi | Hội thoại tạo và lưu như trước |
+| TC-FR30-02 | Rời Chat, vào lịch sử và mở lại hội thoại | Tin nhắn còn đầy đủ |
+| TC-FR30-03 | Tạo chat mới, tắt lưu lịch sử, gửi câu hỏi | Nhận trả lời bình thường, không sinh bản ghi trong MongoDB |
+| TC-FR30-04 | Chế độ tắt, hỏi câu tiếp theo liên quan | AI dùng được ngữ cảnh tạm thời trong phiên |
+| TC-FR30-05 | Rời phiên tắt lưu, mở lại lịch sử | Không thấy hội thoại tạm thời |
+| TC-FR30-06 | Đổi chế độ giữa phiên | Thông báo xác nhận, bắt đầu chat mới; lịch sử đã lưu trước đó không bị xóa |
+| TC-FR30-07 | Không có JWT / yêu cầu sai dữ liệu history | API chặn theo kiểm tra quyền và dữ liệu |
+
+**Phụ thuộc:** FR-30 thêm giao diện và API vào branch feature; Render vẫn chạy main, cần Backend local từ cùng branch để test. Test helper: `node --test backend/tests/ephemeralChat.test.js`.
+
+**Giới hạn cần nêu:** Chế độ không lưu không ghi `conversations` hoặc `messages` vào MongoDB; văn bản trao đổi vẫn gửi tới Gemini để trả lời và có thể chịu chính sách lưu trữ của nhà cung cấp AI. Không mô tả chế độ này là bảo đảm ẩn danh hoặc không lưu dữ liệu ở mọi hệ thống.
