@@ -22,8 +22,14 @@ import {
 
 import useScanner from "../hooks/useScanner";
 
-export default function ScanScreen() {
+export default function ScanScreen({ navigation }) {
     const scanner = useScanner();
+    const sendToSolver = () => {
+        const text = scanner.ocrText.trim();
+        if (!scanner.loading && text && text.length <= 6000) {
+            navigation.navigate("Solver", { initialQuestion: text });
+        }
+    };
 
     if (scanner.showCamera) {
         return (
@@ -104,6 +110,7 @@ export default function ScanScreen() {
                     onRestore={
                         scanner.restoreText
                     }
+                    onAnalyze={sendToSolver}
                 />
 
                 {!scanner.selectedImage &&
