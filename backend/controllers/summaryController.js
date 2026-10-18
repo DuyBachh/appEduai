@@ -10,6 +10,7 @@ const summaryService =
 const requiredServiceFunctions =
     [
         "summarizeDocument",
+        "listDocumentSections",
 
         "getDocumentSummaries",
 
@@ -36,6 +37,7 @@ for (
 
 const {
     summarizeDocument,
+    listDocumentSections,
 
     getDocumentSummaries,
 
@@ -120,14 +122,16 @@ const createSummary =
                     ?.type ||
                 "medium";
 
+            const sectionId =
+                req.body?.sectionId || null;
+
             const summary =
                 await summarizeDocument(
                     {
                         userId,
-
                         documentId,
-
                         type,
+                        sectionId,
                     }
                 );
 
@@ -149,6 +153,25 @@ const createSummary =
             );
         }
     };
+
+// ========================================
+// FR-19: LIST CHAPTERS/PARTS
+// ========================================
+const getSections = async (req, res, next) => {
+    try {
+        const userId = requireUserId(req);
+        const sections = await listDocumentSections({
+            userId,
+            documentId: req.params.documentId,
+        });
+        return res.status(200).json({
+            success: true,
+            data: sections,
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
 
 // ========================================
 // HISTORY
@@ -300,6 +323,7 @@ const deleteSummary =
 
 module.exports = {
     createSummary,
+    getSections,
     getSummariesByDocument,
     getSummaryDetail,
     deleteSummary,
