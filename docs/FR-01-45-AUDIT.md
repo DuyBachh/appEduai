@@ -243,3 +243,31 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 
 - Người dùng xác nhận **FR-05 PASS 8/8** sau khi kiểm thử hai tài khoản A/B, API truy cập tài liệu và URL file upload trên Backend local. Ghi nhận kết quả kiểm thử thủ công; không suy rộng thành kiểm toán bảo mật toàn diện.
 - Các yêu cầu tiếp theo cần xác nhận trực tiếp: **FR-13 đến FR-18, FR-20 đến FR-22**. FR-19 đã có PASS riêng và không cần kiểm thử lại nếu không phát sinh regression.
+
+## Nhóm hồi quy Summary FR-13–18, FR-20–22 – chờ test
+
+Dùng tài liệu PDF có văn bản đọc được và ba chương đã dùng kiểm thử FR-19, không cần upload lại nếu tài liệu còn trên Backend local. Ưu tiên chế độ **Toàn bộ tài liệu** để phân biệt với FR-19.
+
+| TC | FR bao phủ | Thao tác trên iPhone / Backend | Expected | Actual |
+|---|---|---|---|---|
+| SUM-01 | FR-13, FR-15 | Mở **Tài liệu → Chi tiết** PDF; xem phần **Nội dung tài liệu** | Có văn bản trích xuất, đối chiếu được 2–3 câu với PDF; dữ liệu sẵn cho AI | Not Run |
+| SUM-02 | FR-14, FR-16 | **AI Tóm tắt → Toàn bộ tài liệu → Vừa → Tạo bản tóm tắt**; nếu có thể, xem log Backend | Tạo thành công; Backend dùng văn bản đã trích xuất làm nguồn và gửi cho Gemini (cache có thể được dùng với cùng phạm vi/độ dài) | Not Run |
+| SUM-03 | FR-17 | Đối chiếu ít nhất 3 ý trong tóm tắt với PDF gốc | Những ý chính đúng nguồn, không bịa sự kiện/chương không có trong PDF | Not Run |
+| SUM-04 | FR-18 | Chọn **Ngắn**, tạo tóm tắt toàn bộ | Hiển thị bản ngắn giữ ý chính | Not Run |
+| SUM-05 | FR-18 | Chọn **Vừa**, tạo tóm tắt toàn bộ | Hiển thị bản vừa có thêm giải thích so với ngắn (độ dài không nhất thiết tăng đúng tỉ lệ) | Not Run |
+| SUM-06 | FR-18 | Chọn **Chi tiết**, tạo tóm tắt toàn bộ | Hiển thị bản chi tiết, có nhiều thông tin phù hợp hơn | Not Run |
+| SUM-07 | FR-20 | Đọc kết quả trên iPhone, cuộn, sao chép thử một đoạn | Dễ đọc, xuống dòng hợp lý, không thấy dấu Markdown thừa như `**`/ `#` | Not Run |
+| SUM-08 | FR-21 | Tạo tóm tắt, kiểm tra trạng thái **Đã lưu vào lịch sử** | Tóm tắt được tự lưu; không bắt buộc nút Lưu riêng theo thiết kế hiện tại | Not Run |
+| SUM-09 | FR-22 | Mở **Lịch sử → Chi tiết**, đóng app/mở lại và kiểm tra các bản ngắn/vừa/chi tiết | Có bản ghi theo từng mức; mở lại vẫn hiển thị đầy đủ nội dung, ngày và phạm vi | Not Run |
+
+**Quy tắc xác nhận:** Chỉ ghi PASS cho FR-13–18, FR-20–22 sau khi người dùng thực hiện kiểm thử này. FR-19 đã PASS trước đó; không đánh dấu lại.
+
+**Các đợt còn lại, nên gộp theo màn hình:**
+
+1. Summary: FR-13–18, FR-20–22 (9 TC ở trên).
+2. Documents: FR-06–10 (PDF/DOCX/TXT, danh sách, metadata, đổi tên).
+3. Chat AI: FR-23–29 (hỏi đáp, nguồn tài liệu, ngữ cảnh, mới hội thoại).
+4. Scanner + Solver: FR-31–36, FR-38–42 và FR-44.
+5. Auth + Profile: FR-01–04; FR-03 và luồng reset token phải đánh giá bảo mật cẩn thận.
+
+Đây là các nhóm chờ kiểm thử, **không phải xác nhận PASS**.
