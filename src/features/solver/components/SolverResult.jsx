@@ -37,6 +37,7 @@ export default function SolverResult({
     followUpError,
     onFollowUpChange,
     onSendFollowUp,
+    resetDisabled,
     onReset,
 }) {
     if (!result) {
@@ -155,8 +156,9 @@ export default function SolverResult({
             />
 
             <TouchableOpacity
-                style={styles.resetButton}
+                style={[styles.resetButton, resetDisabled && styles.disabledButton]}
                 onPress={onReset}
+                disabled={resetDisabled}
             >
                 <Text style={styles.resetText}>
                     + Giải bài khác
@@ -274,6 +276,9 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         alignItems: "center",
         backgroundColor: colors.white,
+    },
+    disabledButton: {
+        opacity: 0.45,
     },
     resetText: {
         fontSize: 15,
