@@ -149,7 +149,11 @@ const deleteDocument = async (
         res.status(200).json({
             success: true,
             message:
-                "Xóa tài liệu thành công.",
+                result.fileStatus === "failed"
+                    ? "Đã xóa tài liệu và dữ liệu liên quan, nhưng chưa xóa được file gốc trên máy chủ."
+                    : result.fileStatus === "shared"
+                    ? "Đã xóa tài liệu. File gốc vẫn được giữ vì còn tài liệu khác sử dụng."
+                    : "Xóa tài liệu và dữ liệu liên quan thành công.",
             data: result,
         });
     } catch (error) {
