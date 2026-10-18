@@ -19,7 +19,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-02 | Đăng nhập, đăng xuất | Có code | Đăng nhập đúng/sai, đăng xuất | Not Run |
 | FR-03 | Quên/đặt lại mật khẩu | Demo có rủi ro | Chỉ thử với tài khoản giả; token reset hiện lộ qua API | Not Run |
 | FR-04 | Cập nhật hồ sơ | Có code | Đổi tên, tải lại, kiểm tra lưu | Not Run |
-| FR-05 | Dữ liệu riêng theo tài khoản | Đã rà soát kiểm tra chủ sở hữu trong Documents/Summary/Chat; chặn public uploads trên feature | Test 2 tài khoản A/B: tài liệu, summary, chat tách biệt; API không cho đọc/sửa/xóa tài liệu tài khoản khác; đường dẫn file gốc không truy cập công khai | **Not Run** |
+| FR-05 | Dữ liệu riêng theo tài khoản | Đã triển khai chặn public uploads và kiểm thử A/B, API, file trên iPhone/local | Hai tài khoản A/B không truy cập chéo tài liệu, Summary/Chat, không xem được file gốc qua URL công khai | **PASS 8/8** (người dùng xác nhận) |
 | FR-06 | Upload tài liệu | Có code | Tải file mẫu lên | Not Run |
 | FR-07 | PDF, DOCX, TXT | Có code | Tải từng định dạng | Not Run |
 | FR-08 | Danh sách tài liệu | Có code | Kiểm tra danh sách vừa upload | Not Run |
@@ -70,7 +70,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 5. **FR-45** – **PASS:** người dùng xác nhận hỏi tiếp về lời giải hoạt động sau khi khắc phục lỗi 404 Backend local.
 6. **FR-43** – **PASS:** người dùng xác nhận chế độ xem/ẩn lời giải theo yêu cầu hoạt động trên iPhone.
 7. **FR-11** – **PASS 7/7:** người dùng xác nhận đã xóa được tài liệu, file upload vật lý và dữ liệu liên quan; giữ dữ liệu khác nguyên vẹn.
-8. **FR-05** – Đã chặn truy cập công khai `/uploads`; cần kiểm thử hai tài khoản A/B và API quyền sở hữu. Sau đó nhóm test FR-17, FR-20, FR-21, FR-25.
+8. **FR-05** – **PASS 8/8:** người dùng xác nhận phân quyền A/B, API và URL file upload. Tiếp tục nhóm kiểm thử Summary (FR-13 đến FR-22).
 
 ## Rủi ro demo ngoài FR
 
@@ -238,3 +238,8 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 | TC-FR05-08 | A đăng nhập lại và dùng Summary/Chat của chính A | Hoạt động như trước, không ảnh hưởng regression |
 
 **Trạng thái:** FR-05 `Not Run`, chưa đánh dấu PASS. Test cần Backend local từ branch `feature/fr-completion`; Render `main` vẫn có route cũ nên không dùng để đánh giá thay đổi này.
+
+## Xác nhận FR-05 – 18/10/2026
+
+- Người dùng xác nhận **FR-05 PASS 8/8** sau khi kiểm thử hai tài khoản A/B, API truy cập tài liệu và URL file upload trên Backend local. Ghi nhận kết quả kiểm thử thủ công; không suy rộng thành kiểm toán bảo mật toàn diện.
+- Các yêu cầu tiếp theo cần xác nhận trực tiếp: **FR-13 đến FR-18, FR-20 đến FR-22**. FR-19 đã có PASS riêng và không cần kiểm thử lại nếu không phát sinh regression.
