@@ -110,6 +110,10 @@ const sendMessage =
                     null,
 
                 question,
+
+                saveHistory = true,
+
+                ephemeralHistory = [],
             } =
                 req.body || {};
 
@@ -123,6 +127,9 @@ const sendMessage =
                         conversationId,
 
                         question,
+
+                        saveHistory,
+                        ephemeralHistory,
                     }
                 );
 
