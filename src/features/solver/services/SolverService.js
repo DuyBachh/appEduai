@@ -47,6 +47,31 @@ export default class SolverService {
         );
     }
 
+    static async askFollowUp({ originalQuestion, result, question, history = [] }) {
+        const response = await apiRequest("/solver/follow-up", {
+            method: "POST",
+            body: JSON.stringify({
+                originalQuestion,
+                result: {
+                    type: result?.type,
+                    topic: result?.topic,
+                    explanation: result?.explanation,
+                    steps: result?.steps,
+                    finalAnswer: result?.finalAnswer,
+                },
+                question,
+                history,
+            }),
+        });
+
+        const answer = response?.data?.answer;
+        if (typeof answer !== "string" || !answer.trim()) {
+            throw new Error("AI không trả về lời giải thích.");
+        }
+
+        return answer.trim();
+    }
+
     static async readQuestionFromImage(image) {
         if (!image?.uri) {
             throw new Error(
