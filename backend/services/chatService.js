@@ -33,6 +33,35 @@ const MAX_HISTORY_MESSAGES =
 const CHAT_MAX_OUTPUT_TOKENS =
     700;
 
+const MAX_TEMP_HISTORY_CHARS = 24000;
+
+const validateEphemeralHistory = (history) => {
+    if (!Array.isArray(history) || history.length > MAX_HISTORY_MESSAGES) {
+        throw createServiceError("Lịch sử tạm thời không hợp lệ.", 400);
+    }
+
+    let totalChars = 0;
+    return history.map((message) => {
+        if (
+            !message ||
+            typeof message !== "object" ||
+            (message.role !== "user" && message.role !== "assistant") ||
+            typeof message.content !== "string"
+        ) {
+            throw createServiceError("Tin nhắn tạm thời không hợp lệ.", 400);
+        }
+
+        const content = message.content.trim();
+        totalChars += content.length;
+        if (!content || content.length > 4000 || totalChars > MAX_TEMP_HISTORY_CHARS) {
+            throw createServiceError("Lịch sử tạm thời quá dài hoặc rỗng.", 400);
+        }
+
+        // Accept only role and content; never trust IDs or user details from client.
+        return { role: message.role, content };
+    });
+};
+
 // ========================================
 // CHAT WITH DOCUMENT
 // ========================================
@@ -44,6 +73,8 @@ const chatWithDocument =
         conversationId =
             null,
         question,
+        saveHistory = true,
+        ephemeralHistory = [],
     }) => {
         validateObjectId(
             userId,
@@ -54,6 +85,21 @@ const chatWithDocument =
             documentId,
             "Document ID không hợp lệ."
         );
+
+        if (typeof saveHistory !== "boolean") {
+            throw createServiceError("Chế độ lưu lịch sử không hợp lệ.", 400);
+        }
+
+        if (!saveHistory && conversationId) {
+            throw createServiceError(
+                "Chế độ không lưu không thể sử dụng hội thoại đã lưu.",
+                400
+            );
+        }
+
+        const temporaryHistory = !saveHistory
+            ? validateEphemeralHistory(ephemeralHistory)
+            : [];
 
         const normalizedQuestion =
             String(
@@ -155,6 +201,10 @@ const chatWithDocument =
             false;
 
         if (
+            !saveHistory
+        ) {
+            // Stateless conversation: no MongoDB conversation is created.
+        } else if (
             conversationId
         ) {
             validateObjectId(
@@ -218,11 +268,10 @@ const chatWithDocument =
         // HISTORY
         // ========================================
 
-        let history =
-            [];
+        let history = temporaryHistory;
 
         if (
-            !isNewConversation
+            saveHistory && !isNewConversation
         ) {
             history =
                 await messagesCollection
@@ -346,6 +395,32 @@ const chatWithDocument =
         }
 
         // ========================================
+        // FR-30: Temporary chat is never persisted in MongoDB.
+        // Returned messages remain in the client's memory for follow-up.
+        // ========================================
+
+        if (!saveHistory) {
+            const createdAt = new Date();
+            return {
+                conversationId: null,
+                isNewConversation: false,
+                saved: false,
+                userMessage: {
+                    _id: new ObjectId(),
+                    role: "user",
+                    content: normalizedQuestion,
+                    createdAt,
+                },
+                assistantMessage: {
+                    _id: new ObjectId(),
+                    role: "assistant",
+                    content: normalizedAnswer,
+                    createdAt,
+                },
+            };
+        }
+
+        // ========================================
         // SAVE NEW CONVERSATION
         // ========================================
 
@@ -432,6 +507,7 @@ const chatWithDocument =
             conversationId:
                 conversation._id,
 
+            saved: true,
             isNewConversation,
 
             userMessage,
