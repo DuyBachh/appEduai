@@ -35,7 +35,7 @@ export default function SolverForm({
                 style={styles.input}
                 value={question}
                 onChangeText={onQuestionChange}
-                placeholder="Ví dụ: Giải phương trình x² - 5x + 6 = 0"
+                placeholder="Nhập nội dung bài tập cần giải..."
                 placeholderTextColor={colors.gray}
                 multiline
                 maxLength={6000}
