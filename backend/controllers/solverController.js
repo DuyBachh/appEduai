@@ -19,6 +19,7 @@ if (
 
 const {
     solveQuestion,
+    askSolverFollowUp,
 } = solverService;
 
 // ========================================
@@ -64,9 +65,26 @@ const solve =
     };
 
 // ========================================
+// FR-45: FOLLOW UP
+// ========================================
+const followUp = async (req, res, next) => {
+    try {
+        const result = await askSolverFollowUp(req.body || {});
+        return res.status(200).json({
+            success: true,
+            message: "Giải thích thêm thành công.",
+            data: result,
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+// ========================================
 // EXPORT
 // ========================================
 
 module.exports = {
     solve,
+    followUp,
 };
