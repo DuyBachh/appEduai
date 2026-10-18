@@ -23,6 +23,7 @@ const {
 } = require("../prompts/chatPrompts");
 
 const { normalizeText, selectDocumentContext } = require("../utils/chatContext");
+const { cleanChatAnswer } = require("../utils/cleanChatAnswer");
 const { validateObjectId } = require("../utils/chatValidation");
 const { createServiceError } = require("../utils/serviceError");
 const { getConversations, getConversationMessages, deleteConversation } = require("./chatHistoryService");
@@ -331,6 +332,10 @@ const chatWithDocument =
                         "Viết tiếng Việt có dấu.",
 
                         "Trả lời trực tiếp và dễ hiểu.",
+
+                        "Chỉ xuất văn bản thuần, không dùng Markdown hoặc dấu * để định dạng.",
+
+                        "Có thể sử dụng dấu • để liệt kê và xuống dòng cho dễ đọc.",
                     ].join(
                         " "
                     ),
@@ -353,7 +358,7 @@ const chatWithDocument =
         );
 
         const normalizedAnswer =
-            normalizeText(
+            cleanChatAnswer(
                 answer
             );
 
