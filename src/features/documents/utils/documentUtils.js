@@ -59,17 +59,22 @@ export function formatDate(value) {
 }
 
 export function getFileType(document) {
-    const name = getDocumentName(document);
-    const extension = name
-        .split(".")
-        .pop()
-        ?.toUpperCase();
+    // File type is stored separately from the editable display name.
+    // A rename without ".pdf"/".docx"/".txt" must not turn the label
+    // into the entire (uppercased) document title.
+    const storedType = String(document?.fileType || "")
+        .trim()
+        .replace(/^\./, "")
+        .toUpperCase();
 
-    return (
-        extension ||
-        document?.fileType ||
-        "FILE"
-    );
+    if (["PDF", "DOCX", "TXT"].includes(storedType)) {
+        return storedType;
+    }
+
+    const name = getDocumentName(document);
+    const match = name.match(/\.([^.]+)$/);
+
+    return match ? match[1].toUpperCase() : "FILE";
 }
 
 export function getDocumentMimeType(file) {
