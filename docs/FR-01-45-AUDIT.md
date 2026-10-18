@@ -57,9 +57,9 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-40 | Gợi ý từng bước | Có code | Xem danh sách hints | Not Run |
 | FR-41 | Yêu cầu gợi ý tiếp theo | Có code | Nhấn nút gợi ý tiếp theo | Not Run |
 | FR-42 | Giải thích khái niệm | Có code | Kiểm tra phần explanation | Not Run |
-| FR-43 | Lời giải khi sinh viên yêu cầu (có thể) | Lệch luồng tùy chọn | Hiện hiển thị lời giải ngay sau solve | Not Run |
+| FR-43 | Xem lời giải khi sinh viên yêu cầu | Đã code trên feature, chưa test iPhone | Sau giải chỉ thấy gợi ý/giải thích; nhấn Xem lời giải đầy đủ mới hiện bước giải và đáp án | **Not Run** |
 | FR-44 | Phân biệt hint/giải thích/lời giải | Có code | So sánh 3 phần trên Solver | Not Run |
-| FR-45 | Hỏi tiếp về lời giải | Chưa thấy | Hỏi tại sao một bước giải đúng, giữ ngữ cảnh | Not Run |
+| FR-45 | Hỏi tiếp về lời giải | Đã code Backend API và hội thoại tạm trên Solver, chưa test iPhone | Hỏi về bước giải, hỏi tiếp có ngữ cảnh, đổi bài thì reset, lỗi API có thể thử lại | **Not Run** |
 
 ## Danh sách công việc ưu tiên
 
@@ -67,8 +67,8 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 2. **FR-19** – **PASS:** người dùng xác nhận nhận diện, tóm tắt đúng phạm vi ba chương, tên chương và lịch sử đều chính xác trên iPhone.
 3. **FR-30** – **PASS:** người dùng xác nhận các luồng bật/tắt lưu lịch sử, hỏi tiếp trong phiên và chuyển chế độ trên iPhone.
 4. **FR-37** – **PASS 7/7:** người dùng xác nhận toàn bộ luồng OCR → Solver trên iPhone.
-5. **FR-45** – Hội thoại hỏi tiếp dựa trên bài toán và lời giải Solver.
-6. **FR-43** – Nếu cần demo thao tác yêu cầu riêng, chỉ hiển thị lời giải hoàn chỉnh khi nhấn nút; câu chữ đề là “có thể”.
+5. **FR-45** – Đã bổ sung API và ô hỏi tiếp về bài giải, còn chờ kiểm thử tích hợp trên iPhone.
+6. **FR-43** – Đã bổ sung nút mở/ẩn lời giải đầy đủ; mặc định giấu các bước giải và đáp án, còn chờ kiểm thử iPhone.
 7. **FR-11** – Xử lý file gốc khi xóa tài liệu; xem xét dữ liệu tệp của bản tóm tắt và lịch sử liên quan.
 8. **FR-05, FR-17, FR-20, FR-21, FR-25** – Chạy các trường hợp xác nhận chất lượng và hành vi thực tế.
 
@@ -150,3 +150,25 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 
 - **FR-37 PASS 7/7** theo người dùng đã kiểm thử đầy đủ TC-FR37 trên iPhone.
 - Hai yêu cầu tiếp theo **FR-43 và FR-45** đang triển khai trên `feature/fr-completion`; không đánh dấu PASS khi chưa có kết quả test trực tiếp.
+
+## FR-43 & FR-45 – Triển khai 18/10/2026, chờ kiểm thử
+
+- **FR-43:** Kết quả Solver vẫn gồm phân loại, chủ đề, gợi ý từng bước, và giải thích ban đầu. Các bước giải + đáp án cuối chỉ hiển thị khi người dùng nhấn **Xem lời giải đầy đủ**; nút này có thể đóng lại. Đây là kiểm soát hiển thị trên UI: JSON Backend vẫn chứa các bước và đáp án sau lần giải đầu tiên.
+- **FR-45:** Sau khi giải, phần **Hỏi thêm về bài giải** cho phép hỏi vì sao một bước đúng, hỏi tiếp từ câu trả lời trước; tối đa 6 tin gần nhất được gửi cùng đề gốc và kết quả đã giải tới `POST /api/solver/follow-up` có JWT.
+- **Lưu trữ:** Lịch sử hỏi tiếp Solver chỉ nằm trong bộ nhớ màn hình, không ghi MongoDB. Nội dung vẫn được gửi sang dịch vụ Gemini và chịu chính sách của nhà cung cấp AI.
+- **An toàn dữ liệu:** Backend giới hạn độ dài câu hỏi, đề bài, số bước, kết quả, số lượng tin nhắn, và lọc `role`. Không đọc dữ liệu người khác từ DB theo ngữ cảnh do người dùng cung cấp.
+- **Bộ test:** `node --test backend/tests/solverFollowUp.test.js`, các trường hợp kiểm tra validation/prompt đạt 5/5 trong JavaScript; chưa chạy tích hợp Gemini.
+
+| TC | Thực hiện trên iPhone | Expected |
+|---|---|---|
+| TC-FR43-01 | Giải đề mới | Có gợi ý + giải thích; chưa thấy danh sách bước giải và đáp án |
+| TC-FR43-02 | Nhấn **Xem lời giải đầy đủ** | Hiển thị toàn bộ bước và đáp án |
+| TC-FR43-03 | Nhấn **Ẩn lời giải đầy đủ** | Các bước và đáp án được ẩn lại |
+| TC-FR43-04 | Giải đề khác | Lời giải lại ẩn theo mặc định |
+| TC-FR45-01 | Sau khi giải, hỏi “Vì sao bước 2 làm như vậy?” | AI trả lời phù hợp bài hiện tại |
+| TC-FR45-02 | Hỏi tiếp “Có cách nào khác không?” | AI hiểu ngữ cảnh từ câu hỏi và bài giải trước |
+| TC-FR45-03 | Thử gửi câu hỏi rỗng | Nút Gửi bị vô hiệu hóa |
+| TC-FR45-04 | Giải bài mới và hỏi tiếp | Không dùng nhầm ngữ cảnh bài trước |
+| TC-FR45-05 | Thử khi Backend/Gemini lỗi | Có lỗi rõ ràng, vẫn giữ nội dung để gửi lại |
+
+**Chú ý:** Render `main` chưa được cập nhật. Kiểm thử FR-45 cần Backend local đang chạy `feature/fr-completion`; chỉ cập nhật Expo mà không khởi động Backend mới sẽ trả lỗi 404.
