@@ -113,3 +113,12 @@ Người dùng xác nhận các kiểm tra cuối FR-19 đều PASS: tóm tắt 
 **Phụ thuộc:** FR-30 thêm giao diện và API vào branch feature; Render vẫn chạy main, cần Backend local từ cùng branch để test. Test helper: `node --test backend/tests/ephemeralChat.test.js`.
 
 **Giới hạn cần nêu:** Chế độ không lưu không ghi `conversations` hoặc `messages` vào MongoDB; văn bản trao đổi vẫn gửi tới Gemini để trả lời và có thể chịu chính sách lưu trữ của nhà cung cấp AI. Không mô tả chế độ này là bảo đảm ẩn danh hoặc không lưu dữ liệu ở mọi hệ thống.
+
+## Cải thiện hiển thị phản hồi Chat AI – 18/10/2026
+
+- Điều chỉnh prompt Gemini để ưu tiên văn bản thuần, xuống dòng dễ đọc trên màn hình điện thoại.
+- Backend chuẩn hóa kết quả AI trước khi trả và lưu; chuyển dấu đầu dòng Markdown `*` hoặc `-` thành `•`, bỏ dấu `**`/dấu nhấn mạnh, tiêu đề `#` và code fence.
+- Frontend hiển thị cả lịch sử AI cũ bằng định dạng sạch, **không sửa nội dung tin nhắn người dùng** và không làm thay đổi bản ghi cũ trong MongoDB.
+- Giữ ký hiệu toán học hợp lệ như `2 * 3`, `x*y*z`.
+- Bộ test làm sạch văn bản: 7/7 trường hợp đạt qua kiểm tra hàm với môi trường JavaScript; cần chạy `node --test backend/tests/cleanChatAnswer.test.js` trên máy người dùng và kiểm thử Chat với Gemini thực tế.
+- FR-30 vẫn **Not Run** trên iPhone, chưa được coi là PASS.
