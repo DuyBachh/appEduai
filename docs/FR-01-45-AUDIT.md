@@ -26,14 +26,14 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-09 | Tên, ngày tải, kích thước | Có code | Mở thẻ/chi tiết tài liệu | Not Run |
 | FR-10 | Đổi tên tài liệu | Có code | Đổi tên và tải lại danh sách | Not Run |
 | FR-11 | Xóa tài liệu | Chưa đầy đủ | Xóa bản ghi; kiểm tra file vật lý có được xóa không | Not Run |
-| FR-12 | Tổ chức theo môn học/chủ đề | Đã sửa trên feature – chưa test | Gán môn/chủ đề, kiểm tra nhóm và bộ lọc, mở lại | Not Run |
+| FR-12 | Tổ chức theo môn học/chủ đề | Đã sửa trên feature và test iPhone | Gán môn/chủ đề, nhóm, lọc, chưa phân loại, mở lại | **PASS 8/8** (người dùng xác nhận) |
 | FR-13 | Lưu nội dung tài liệu cho AI | Có code | Trích xuất văn bản rồi chạy Summary/Chat | Not Run |
 | FR-14 | Yêu cầu AI tóm tắt tài liệu | Có code | Chọn file và tạo tóm tắt | Not Run |
 | FR-15 | Trích xuất văn bản PDF | Có code | PDF có text, kiểm tra nội dung trích xuất | Not Run |
 | FR-16 | Gửi nội dung phù hợp tới AI API | Có code | Tạo Summary qua backend | Not Run |
 | FR-17 | Tóm tắt dựa trên tài liệu | Cần kiểm thử | Đối chiếu 3 ý với PDF gốc | Not Run |
 | FR-18 | Ngắn/trung bình/chi tiết | Có code | Tạo đủ 3 mức | Not Run |
-| FR-19 | Tóm tắt theo chương/phần | Chưa thấy | Cho chọn một chương riêng rồi tóm tắt | Not Run |
+| FR-19 | Tóm tắt theo chương/phần | Đã code trên feature – chưa test | Chọn đúng chương/phần rồi tóm tắt, kiểm tra phân quyền và lịch sử | Not Run |
 | FR-20 | Kết quả tóm tắt dễ đọc | Cần kiểm thử | Kiểm tra cấu trúc tóm tắt trên iPhone | Not Run |
 | FR-21 | Lưu bản tóm tắt | Có tự lưu – cần xác nhận | Tạo tóm tắt, thoát và mở lại; đề không buộc nút Lưu riêng | Not Run |
 | FR-22 | Xem lại bản tóm tắt | Có code | Mở lịch sử và chi tiết | Not Run |
@@ -63,8 +63,8 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 
 ## Danh sách công việc ưu tiên
 
-1. **FR-12** – Đã bổ sung bộ lọc môn học + tự nhóm theo môn học/chủ đề trên branch `feature/fr-completion`. Cần Expo test, không merge khi chưa PASS.
-2. **FR-19** – Cho chọn chương hoặc phần từ tài liệu đã upload, tóm tắt đúng phần được chọn.
+1. **FR-12** – Bộ lọc môn học + tự nhóm theo môn học/chủ đề đã **PASS 8/8** theo kết quả kiểm thử người dùng trên iPhone; khuyến nghị thêm edge tests đổi/xóa nhóm và chuẩn hóa môn học.
+2. **FR-19** – Đã code chọn chương/phần và tóm tắt đúng phần trên feature. **Chưa test**; cần chạy Backend cùng branch trên LAN/preview vì Render hiện ở `main`; dùng tài liệu có heading rõ ràng.
 3. **FR-30** – Cho lựa chọn lưu/không lưu lịch sử; Backend phải thực sự không lưu khi tắt.
 4. **FR-37** – Kiểm tra Solver OCR→giải; nếu thầy yêu cầu luồng từ Scanner, thêm lệnh chuyển nội dung đã sửa sang Solver.
 5. **FR-45** – Hội thoại hỏi tiếp dựa trên bài toán và lời giải Solver.
@@ -82,3 +82,9 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 
 - Chỉ sửa trên `feature/fr-completion`; **không sửa, merge hoặc deploy `main` nếu chưa được người dùng yêu cầu rõ ràng**.
 - Với từng FR: đọc code → sửa → kiểm tra trên iPhone → ghi Actual Result/PASS/FAIL → commit và push → tiếp tục FR khác.
+
+## Báo cáo tiến độ 18/10/2026
+
+- **FR-12:** User xác nhận TC-FR12-01 **PASS 8/8 bước** trên iPhone. Kiểm thử mở rộng các trường hợp lỗi biên chưa thực hiện.
+- **FR-19:** Đã triển khai trong branch `feature/fr-completion`. Có endpoint `GET /api/summaries/documents/:documentId/sections`, POST summary nhận tùy chọn `sectionId`; Backend luôn lấy văn bản từ MongoDB của chủ sở hữu, không chấp nhận nguồn văn bản từ client. Hỗ trợ heading `Chương`/`Phần` hoặc chia thành các `Phần N` khi file không có heading được trích xuất. Có lưu tên chương/phần trong lịch sử.
+- **Lưu ý:** Không nên nói mọi PDF đều được nhận dạng chương chính xác vì chất lượng văn bản sau trích xuất khác nhau. Kết quả FR-19 hiện vẫn **Not Run**.
