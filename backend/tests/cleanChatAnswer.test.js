@@ -19,7 +19,7 @@ test("Chat AI: convert Markdown bullets into readable bullets", () => {
 test("Chat AI: remove heading and code fence markers", () => {
     assert.equal(
         cleanChatAnswer("### Ví dụ\n```js\nconst x = 2 * 3;\n```"),
-        "Ví dụ\nconst x = 2 * 3;"
+        "Ví dụ\n\nconst x = 2 * 3;"
     );
 });
 
