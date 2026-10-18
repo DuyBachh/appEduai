@@ -19,7 +19,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-02 | Đăng nhập, đăng xuất | Có code | Đăng nhập đúng/sai, đăng xuất | Not Run |
 | FR-03 | Quên/đặt lại mật khẩu | Demo có rủi ro | Chỉ thử với tài khoản giả; token reset hiện lộ qua API | Not Run |
 | FR-04 | Cập nhật hồ sơ | Có code | Đổi tên, tải lại, kiểm tra lưu | Not Run |
-| FR-05 | Dữ liệu riêng theo tài khoản | Cần kiểm thử | Tài khoản A/B không được xem/sửa dữ liệu của nhau | Not Run |
+| FR-05 | Dữ liệu riêng theo tài khoản | Đã rà soát kiểm tra chủ sở hữu trong Documents/Summary/Chat; chặn public uploads trên feature | Test 2 tài khoản A/B: tài liệu, summary, chat tách biệt; API không cho đọc/sửa/xóa tài liệu tài khoản khác; đường dẫn file gốc không truy cập công khai | **Not Run** |
 | FR-06 | Upload tài liệu | Có code | Tải file mẫu lên | Not Run |
 | FR-07 | PDF, DOCX, TXT | Có code | Tải từng định dạng | Not Run |
 | FR-08 | Danh sách tài liệu | Có code | Kiểm tra danh sách vừa upload | Not Run |
@@ -70,7 +70,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 5. **FR-45** – **PASS:** người dùng xác nhận hỏi tiếp về lời giải hoạt động sau khi khắc phục lỗi 404 Backend local.
 6. **FR-43** – **PASS:** người dùng xác nhận chế độ xem/ẩn lời giải theo yêu cầu hoạt động trên iPhone.
 7. **FR-11** – **PASS 7/7:** người dùng xác nhận đã xóa được tài liệu, file upload vật lý và dữ liệu liên quan; giữ dữ liệu khác nguyên vẹn.
-8. **FR-05, FR-17, FR-20, FR-21, FR-25** – Chạy các trường hợp xác nhận chất lượng và hành vi thực tế.
+8. **FR-05** – Đã chặn truy cập công khai `/uploads`; cần kiểm thử hai tài khoản A/B và API quyền sở hữu. Sau đó nhóm test FR-17, FR-20, FR-21, FR-25.
 
 ## Rủi ro demo ngoài FR
 
@@ -219,3 +219,22 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 - Người dùng xác nhận kiểm thử **FR-11 PASS 7/7 bước** trên iPhone, bao gồm xóa bản ghi, xóa file vật lý và các bản tóm tắt, cuộc trò chuyện và tin nhắn liên quan; thử hủy thao tác, tải lại danh sách và giữ dữ liệu khác.
 - Đây là kết quả kiểm thử thủ công từ người dùng; không suy rộng sang các trường hợp xóa đồng thời hay quyền tài khoản khác chưa kiểm thử riêng.
 - **Tiếp theo:** FR-05 — xác nhận dữ liệu và truy cập tệp riêng theo tài khoản A/B. Trong `backend/app.js`, `/uploads` đang được phục vụ bằng `express.static` không yêu cầu JWT; cần xử lý trước khi kết luận FR-05 PASS toàn bộ.
+
+## FR-05 – Đã chặn public uploads, chờ kiểm thử trên iPhone
+
+- Lỗi phát hiện: `app.use('/uploads', express.static(...))` cho phép đọc file vật lý mà không có JWT; bỏ route static công khai trên branch feature. Từ nay URL `/uploads/<filename>` phải trả 404, không trả nội dung PDF/TXT.
+- API Documents, Summaries, Chat có JWT và truy vấn dữ liệu theo `userId`, cần kiểm tra lại hành vi thực tế với hai tài khoản thử A/B.
+- Việc tắt static uploads **không tạo mới một API tải file riêng tư**; chức năng học tập hiện dùng văn bản OCR/extractedText, Summary, Chat. Nếu sau này cần tải lại bản PDF gốc thì bổ sung endpoint tải file với xác thực và kiểm tra chủ sở hữu, không mở lại `/uploads` công khai.
+
+| Case | Thao tác | Expected |
+|---|---|---|
+| TC-FR05-01 | A đăng nhập, upload file A và tạo summary/chat | Chỉ A thấy dữ liệu A |
+| TC-FR05-02 | Đăng xuất A, đăng nhập B | Danh sách tài liệu, summary/chat không có dữ liệu A |
+| TC-FR05-03 | B upload file B và tạo summary/chat | B thấy dữ liệu B; không ghi đè dữ liệu A |
+| TC-FR05-04 | Trở lại A | File, summary, chat của A còn; file B không xuất hiện |
+| TC-FR05-05 | Dùng JWT B thử GET/PUT/DELETE documentId của A (chỉ dùng dữ liệu test) | B bị từ chối 404/403, không sửa/xóa tài liệu A |
+| TC-FR05-06 | Dùng JWT B thử Summary/Chat documentId của A | B không thể xem hay hỏi từ tài liệu A |
+| TC-FR05-07 | Không đăng nhập, thử mở trực tiếp URL `/uploads/<tên-file-thử>` | 404; không trả nội dung file |
+| TC-FR05-08 | A đăng nhập lại và dùng Summary/Chat của chính A | Hoạt động như trước, không ảnh hưởng regression |
+
+**Trạng thái:** FR-05 `Not Run`, chưa đánh dấu PASS. Test cần Backend local từ branch `feature/fr-completion`; Render `main` vẫn có route cũ nên không dùng để đánh giá thay đổi này.
