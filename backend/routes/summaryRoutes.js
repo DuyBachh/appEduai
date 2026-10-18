@@ -44,6 +44,7 @@ if (
 
 const requiredControllers = [
     "createSummary",
+    "getSections",
     "getSummariesByDocument",
     "getSummaryDetail",
     "deleteSummary",
@@ -98,6 +99,12 @@ router.post(
 // GET
 // /api/summaries/documents/:documentId
 // ========================================
+
+// FR-19: sections of the selected document
+router.get(
+    "/documents/:documentId/sections",
+    summaryController.getSections
+);
 
 router.get(
     "/documents/:documentId",
