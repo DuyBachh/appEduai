@@ -57,9 +57,9 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-40 | Gợi ý từng bước | Có code | Xem danh sách hints | Not Run |
 | FR-41 | Yêu cầu gợi ý tiếp theo | Có code | Nhấn nút gợi ý tiếp theo | Not Run |
 | FR-42 | Giải thích khái niệm | Có code | Kiểm tra phần explanation | Not Run |
-| FR-43 | Xem lời giải khi sinh viên yêu cầu | Đã code trên feature, chưa test iPhone | Sau giải chỉ thấy gợi ý/giải thích; nhấn Xem lời giải đầy đủ mới hiện bước giải và đáp án | **Not Run** |
+| FR-43 | Xem lời giải khi sinh viên yêu cầu | Đã code và kiểm thử trên iPhone | Các bước và đáp án chỉ hiện khi chọn xem, có thể ẩn và bắt đầu bài mới | **PASS** (người dùng xác nhận) |
 | FR-44 | Phân biệt hint/giải thích/lời giải | Có code | So sánh 3 phần trên Solver | Not Run |
-| FR-45 | Hỏi tiếp về lời giải | Đã code Backend API và hội thoại tạm trên Solver, chưa test iPhone | Hỏi về bước giải, hỏi tiếp có ngữ cảnh, đổi bài thì reset, lỗi API có thể thử lại | **Not Run** |
+| FR-45 | Hỏi tiếp về lời giải | Đã code và kiểm thử trên iPhone | Gửi câu hỏi dựa trên lời giải, hỏi tiếp theo ngữ cảnh; API follow-up chạy sau khi cập nhật Backend | **PASS** (người dùng xác nhận) |
 
 ## Danh sách công việc ưu tiên
 
@@ -67,8 +67,8 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 2. **FR-19** – **PASS:** người dùng xác nhận nhận diện, tóm tắt đúng phạm vi ba chương, tên chương và lịch sử đều chính xác trên iPhone.
 3. **FR-30** – **PASS:** người dùng xác nhận các luồng bật/tắt lưu lịch sử, hỏi tiếp trong phiên và chuyển chế độ trên iPhone.
 4. **FR-37** – **PASS 7/7:** người dùng xác nhận toàn bộ luồng OCR → Solver trên iPhone.
-5. **FR-45** – Đã bổ sung API và ô hỏi tiếp về bài giải, còn chờ kiểm thử tích hợp trên iPhone.
-6. **FR-43** – Đã bổ sung nút mở/ẩn lời giải đầy đủ; mặc định giấu các bước giải và đáp án, còn chờ kiểm thử iPhone.
+5. **FR-45** – **PASS:** người dùng xác nhận hỏi tiếp về lời giải hoạt động sau khi khắc phục lỗi 404 Backend local.
+6. **FR-43** – **PASS:** người dùng xác nhận chế độ xem/ẩn lời giải theo yêu cầu hoạt động trên iPhone.
 7. **FR-11** – Xử lý file gốc khi xóa tài liệu; xem xét dữ liệu tệp của bản tóm tắt và lịch sử liên quan.
 8. **FR-05, FR-17, FR-20, FR-21, FR-25** – Chạy các trường hợp xác nhận chất lượng và hành vi thực tế.
 
@@ -180,3 +180,9 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 - Log người dùng: `POST http://192.168.1.204:5000/api/solver/follow-up` trả **404**. Giả thuyết chính: Backend local vẫn chạy source cũ hoặc tiến trình khác chiếm port 5000; chưa thể xác minh từ máy người dùng.
 - Giao diện sẽ thông báo cụ thể khi gặp lỗi 404 để hướng dẫn đồng bộ rồi khởi động lại Backend từ `feature/fr-completion`.
 - **FR-43, FR-45 vẫn Not Run / chưa PASS** cho tới khi người dùng kiểm tra lại trên iPhone.
+
+## Xác nhận FR-43 & FR-45 – 18/10/2026
+
+- Người dùng phản hồi **đã PASS** sau khi kiểm thử lại Solver trên iPhone và khắc phục lỗi `404 /api/solver/follow-up`.
+- Ghi **FR-43 PASS**, **FR-45 PASS** dựa trên báo cáo kiểm thử thủ công. Chưa có kiểm thử độc lập mọi trường hợp lỗi API.
+- Thay đổi giao diện đã xóa các câu ví dụ ở ô Solver và phần Hỏi thêm về bài giải.
