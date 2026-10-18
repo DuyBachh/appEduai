@@ -51,7 +51,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-34 | Chuyển kết quả OCR thành text | Có code | Kiểm tra output dạng text | Not Run |
 | FR-35 | Hiển thị nội dung nhận dạng | Có code | Đối chiếu với ảnh gốc | Not Run |
 | FR-36 | Sửa nội dung OCR | Có code | Sửa một từ rồi xác nhận | Not Run |
-| FR-37 | Gửi đề OCR để AI phân tích | Đã bổ sung nút Scanner → Solver trên feature, chưa kiểm thử iPhone | OCR ảnh → sửa text → chuyển Solver → kiểm tra đề điền sẵn → giải bài | **Not Run** |
+| FR-37 | Gửi đề OCR để AI phân tích | Đã triển khai và kiểm thử trên iPhone | OCR → sửa nội dung → chuyển sang Solver → giải bài; thử ảnh khác, rỗng và camera | **PASS 7/7** (người dùng xác nhận) |
 | FR-38 | AI phân tích đề bài | Có code | Gửi đề cho Solver | Not Run |
 | FR-39 | Xác định loại bài/chủ đề | Có code | Kiểm tra type/topic trả về | Not Run |
 | FR-40 | Gợi ý từng bước | Có code | Xem danh sách hints | Not Run |
@@ -66,7 +66,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 1. **FR-12** – Bộ lọc môn học + tự nhóm theo môn học/chủ đề đã **PASS 8/8** theo kết quả kiểm thử người dùng trên iPhone; khuyến nghị thêm edge tests đổi/xóa nhóm và chuẩn hóa môn học.
 2. **FR-19** – **PASS:** người dùng xác nhận nhận diện, tóm tắt đúng phạm vi ba chương, tên chương và lịch sử đều chính xác trên iPhone.
 3. **FR-30** – **PASS:** người dùng xác nhận các luồng bật/tắt lưu lịch sử, hỏi tiếp trong phiên và chuyển chế độ trên iPhone.
-4. **FR-37** – Đã bổ sung luồng Scanner → Solver nhận đúng nội dung OCR đã chỉnh sửa; cần kiểm thử trên iPhone trước khi ghi PASS.
+4. **FR-37** – **PASS 7/7:** người dùng xác nhận toàn bộ luồng OCR → Solver trên iPhone.
 5. **FR-45** – Hội thoại hỏi tiếp dựa trên bài toán và lời giải Solver.
 6. **FR-43** – Nếu cần demo thao tác yêu cầu riêng, chỉ hiển thị lời giải hoàn chỉnh khi nhấn nút; câu chữ đề là “có thể”.
 7. **FR-11** – Xử lý file gốc khi xóa tài liệu; xem xét dữ liệu tệp của bản tóm tắt và lịch sử liên quan.
@@ -145,3 +145,8 @@ Người dùng xác nhận kiểm thử FR-30 **PASS** sau khi được hướng
 | TC-FR37-07 | Chụp ảnh bằng camera rồi làm lại luồng | Chuyển đề từ camera sang Solver hoạt động giống ảnh thư viện |
 
 Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solver đã có API giải bài toán. **Trạng thái FR-37: đã code, chưa PASS.**
+
+## Xác nhận FR-37 – 18/10/2026
+
+- **FR-37 PASS 7/7** theo người dùng đã kiểm thử đầy đủ TC-FR37 trên iPhone.
+- Hai yêu cầu tiếp theo **FR-43 và FR-45** đang triển khai trên `feature/fr-completion`; không đánh dấu PASS khi chưa có kết quả test trực tiếp.
