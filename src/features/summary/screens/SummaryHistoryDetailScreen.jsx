@@ -118,6 +118,13 @@ export default function SummaryHistoryDetailScreen({
                     }
                 />
 
+                {summary.sectionTitle ? (
+                    <InfoItem
+                        label="Chương/phần"
+                        value={summary.sectionTitle}
+                    />
+                ) : null}
+
                 <InfoItem
                     label="Cập nhật"
                     value={
