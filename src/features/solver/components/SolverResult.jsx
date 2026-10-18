@@ -8,6 +8,7 @@ import {
 
 import colors from "../../../styles/colors";
 import HintCard from "./HintCard";
+import SolverFollowUp from "./SolverFollowUp";
 
 function InfoBox({ label, value }) {
     return (
@@ -30,6 +31,12 @@ export default function SolverResult({
     onNextHint,
     showFullSolution,
     onToggleFullSolution,
+    followUpText,
+    followUpMessages,
+    followUpLoading,
+    followUpError,
+    onFollowUpChange,
+    onSendFollowUp,
     onReset,
 }) {
     if (!result) {
@@ -137,6 +144,15 @@ export default function SolverResult({
             </View>
                 </>
             ) : null}
+
+            <SolverFollowUp
+                value={followUpText}
+                messages={followUpMessages}
+                loading={followUpLoading}
+                error={followUpError}
+                onChangeText={onFollowUpChange}
+                onSend={onSendFollowUp}
+            />
 
             <TouchableOpacity
                 style={styles.resetButton}
