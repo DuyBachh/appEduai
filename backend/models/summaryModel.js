@@ -8,6 +8,8 @@ const createSummary = ({
     title = "",
     type = "medium",
     content = "",
+    sectionId = null,
+    sectionTitle = "",
 }) => {
     const now =
         new Date();
@@ -32,6 +34,8 @@ const createSummary = ({
             ).trim(),
 
         type,
+        sectionId,
+        sectionTitle,
 
         content:
             String(
