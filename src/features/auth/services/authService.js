@@ -67,17 +67,10 @@ export default class AuthService {
                 }
             );
 
-        const resetToken =
-            result?.data?.resetToken;
-
-        if (!resetToken) {
-            throw new Error(
-                "Backend không trả về reset token."
-            );
-        }
-
         return {
-            resetToken,
+            // Email flow never exposes the token in the HTTP response.
+            // The demo-only server may return it for local classroom testing.
+            resetToken: result?.data?.resetToken || "",
             message: result?.message,
         };
     }
