@@ -21,9 +21,6 @@ export default function SolverFollowUp({
     return (
         <View style={styles.card}>
             <Text style={styles.title}>Hỏi thêm về bài giải</Text>
-            <Text style={styles.description}>
-                Ví dụ: Tại sao bước 2 lại chuyển vế? AI sẽ giải thích dựa trên bài vừa giải.
-            </Text>
 
             {messages.map((message, index) => (
                 <View
@@ -89,13 +86,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "700",
         color: colors.text,
-        marginBottom: 8,
-    },
-    description: {
-        fontSize: 13,
-        lineHeight: 20,
-        color: colors.gray,
-        marginBottom: 12,
+        marginBottom: 14,
     },
     message: {
         padding: 12,
