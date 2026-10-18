@@ -70,7 +70,7 @@ export default class AuthService {
         const resetToken = result?.data?.resetToken;
         if (!resetToken) {
             throw new Error(
-                "Không tạo được mã đặt lại trong chế độ demo local."
+                "Backend chưa trả về mã đặt lại. Vui lòng kiểm tra tài khoản hoặc phiên bản Backend đang chạy."
             );
         }
 
