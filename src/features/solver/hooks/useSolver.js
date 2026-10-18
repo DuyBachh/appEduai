@@ -187,6 +187,13 @@ export default function useSolver(initialQuestion = "") {
         }
     };
 
+    const changeFollowUpText = (value) => {
+        setFollowUpText(value);
+        if (followUpError) {
+            setFollowUpError("");
+        }
+    };
+
     const askFollowUp = async () => {
         const nextQuestion = followUpText.trim();
         if (!result || !nextQuestion || loading) {
@@ -244,6 +251,9 @@ export default function useSolver(initialQuestion = "") {
     };
 
     const reset = () => {
+        if (loading) {
+            return;
+        }
         Keyboard.dismiss();
 
         setQuestion("");
@@ -264,7 +274,7 @@ export default function useSolver(initialQuestion = "") {
         showFullSolution,
         toggleFullSolution,
         followUpText,
-        setFollowUpText,
+        changeFollowUpText,
         followUpMessages,
         followUpLoading,
         followUpError,
