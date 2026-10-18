@@ -25,7 +25,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 | FR-08 | Danh sách tài liệu | Có code | Kiểm tra danh sách vừa upload | Not Run |
 | FR-09 | Tên, ngày tải, kích thước | Có code | Mở thẻ/chi tiết tài liệu | Not Run |
 | FR-10 | Đổi tên tài liệu | Có code | Đổi tên và tải lại danh sách | Not Run |
-| FR-11 | Xóa tài liệu | Đã bổ sung xóa file upload + summaries/conversations/messages trên feature | Xóa file mới upload trên Backend local, xác nhận bản ghi và dữ liệu liên quan mất; người khác không bị ảnh hưởng | **Not Run** |
+| FR-11 | Xóa tài liệu | Đã triển khai và kiểm thử trên iPhone, file vật lý và dữ liệu liên quan | Xóa tài liệu, file upload, tóm tắt, Chat; không ảnh hưởng dữ liệu khác | **PASS 7/7** (người dùng xác nhận) |
 | FR-12 | Tổ chức theo môn học/chủ đề | Đã sửa trên feature và test iPhone | Gán môn/chủ đề, nhóm, lọc, chưa phân loại, mở lại | **PASS 8/8** (người dùng xác nhận) |
 | FR-13 | Lưu nội dung tài liệu cho AI | Có code | Trích xuất văn bản rồi chạy Summary/Chat | Not Run |
 | FR-14 | Yêu cầu AI tóm tắt tài liệu | Có code | Chọn file và tạo tóm tắt | Not Run |
@@ -69,7 +69,7 @@ Rà soát ban đầu dựa trên **source code GitHub** ngày 17/10/2026, không
 4. **FR-37** – **PASS 7/7:** người dùng xác nhận toàn bộ luồng OCR → Solver trên iPhone.
 5. **FR-45** – **PASS:** người dùng xác nhận hỏi tiếp về lời giải hoạt động sau khi khắc phục lỗi 404 Backend local.
 6. **FR-43** – **PASS:** người dùng xác nhận chế độ xem/ẩn lời giải theo yêu cầu hoạt động trên iPhone.
-7. **FR-11** – Đã bổ sung xóa an toàn file upload và dọn summaries, conversations, messages của chính tài liệu; cần test trên iPhone cùng Backend local trước khi ghi PASS.
+7. **FR-11** – **PASS 7/7:** người dùng xác nhận đã xóa được tài liệu, file upload vật lý và dữ liệu liên quan; giữ dữ liệu khác nguyên vẹn.
 8. **FR-05, FR-17, FR-20, FR-21, FR-25** – Chạy các trường hợp xác nhận chất lượng và hành vi thực tế.
 
 ## Rủi ro demo ngoài FR
@@ -213,3 +213,9 @@ Các thay đổi chỉ nằm ở Frontend; không cần endpoint mới vì Solve
 | TC-FR11-07 | Có thêm tài liệu khác hoặc tài khoản khác | Tài liệu và lịch sử không liên quan vẫn còn |
 
 **FR-11 chưa PASS:** chờ người dùng xác nhận kiểm thử trên iPhone và server local.
+
+## Xác nhận FR-11 – 18/10/2026
+
+- Người dùng xác nhận kiểm thử **FR-11 PASS 7/7 bước** trên iPhone, bao gồm xóa bản ghi, xóa file vật lý và các bản tóm tắt, cuộc trò chuyện và tin nhắn liên quan; thử hủy thao tác, tải lại danh sách và giữ dữ liệu khác.
+- Đây là kết quả kiểm thử thủ công từ người dùng; không suy rộng sang các trường hợp xóa đồng thời hay quyền tài khoản khác chưa kiểm thử riêng.
+- **Tiếp theo:** FR-05 — xác nhận dữ liệu và truy cập tệp riêng theo tài khoản A/B. Trong `backend/app.js`, `/uploads` đang được phục vụ bằng `express.static` không yêu cầu JWT; cần xử lý trước khi kết luận FR-05 PASS toàn bộ.
