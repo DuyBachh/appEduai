@@ -49,6 +49,11 @@ export default function useChat({
                     routeConversationId
                 );
 
+                if (routeConversationId) {
+                    // An existing conversation always belongs to saved history.
+                    setSaveHistory(true);
+                }
+
                 if (!routeConversationId) {
                     setMessages([]);
                     setLoadingMessages(false);
@@ -134,7 +139,7 @@ export default function useChat({
                   .slice(-12)
                   .map((item) => ({
                       role: item.role,
-                      content: String(item.content || ""),
+                      content: String(item.content || "").slice(0, 4000),
                   }))
             : [];
 
